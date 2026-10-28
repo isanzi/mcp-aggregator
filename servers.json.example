@@ -1,0 +1,26 @@
+{
+  "descWidth": 84,
+  "callTimeoutMs": 240000,
+  "connectTimeoutMs": 90000,
+  "catalogWaitMs": 20000,
+  "servers": [
+    {
+      "name": "eda",
+      "command": "/usr/bin/node",
+      "args": ["/opt/eda-mcp/dist/index.js"],
+      "cwd": "/opt/eda-mcp",
+      "env": { "LOG_LEVEL": "info" }
+    },
+    {
+      "name": "remote-docs",
+      "url": "https://mcp.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${file:~/.config/example-mcp-token}" }
+    },
+    {
+      "name": "slow",
+      "command": "uvx",
+      "args": ["some-mcp-server"],
+      "callTimeoutMs": 180000
+    }
+  ]
+}
