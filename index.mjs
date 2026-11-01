@@ -139,6 +139,20 @@ const TOOLS = [
       arguments: { type: 'object', description: 'Arguments object; omit when the tool takes none.' },
     }, required: ['tool'] },
   },
+  {
+    name: 'batch',
+    description:
+      'Invoke several catalogued MCP tools in ONE call. Calls run concurrently ACROSS servers and '
+      + 'sequentially WITHIN one server (a downstream owns a single channel). Results return in submission order, '
+      + 'each prefixed by a header line; image blocks pass through verbatim.',
+    inputSchema: { type: 'object', properties: {
+      calls: { type: 'array', description: 'Calls in submission order.', items: { type: 'object', properties: {
+        tool: { type: 'string', description: 'server.tool, mcp__server__tool, or a unique bare tool name.' },
+        arguments: { type: 'object', description: 'Arguments object; omit when the tool takes none.' },
+        label: { type: 'string', description: 'Optional label echoed in the result header.' },
+      }, required: ['tool'] } },
+    }, required: ['calls'] },
+  },
 ]
 
 async function catalogText(a) {
@@ -219,6 +233,49 @@ async function callTool(a) {
   if (res?.structuredContent !== undefined) out.structuredContent = res.structuredContent
   if (res?.isError) out.isError = true
   return out
+}
+
+async function batchTools(a) {
+  await waitAll(Number(CFG.catalogWaitMs ?? 20000))
+  const calls = Array.isArray(a.calls) ? a.calls.filter((c) => c && typeof c === 'object') : []
+  if (!calls.length) return { content: [text('batch: pass calls:[{tool, arguments, label?}]')], isError: true }
+  const resolved = calls.map((c) => {
+    try { return { call: c, entry: resolveTool(c.tool) } }
+    catch (err) { return { call: c, entry: null, err: String(err?.message ?? err) } }
+  })
+  // Group by owning server: one downstream owns ONE channel, so calls into the same
+  // server stay sequential (same stdio client / same EDA bridge); servers run concurrently.
+  const groups = new Map()
+  resolved.forEach((r, i) => {
+    const key = r.entry ? r.entry.server : '\u0000unresolved'
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(i)
+  })
+  const results = new Array(calls.length)
+  // Per-call start/end offsets in one log line each: overlap is read off the
+  // timestamps instead of inferred from wall-clock totals (latency noise hides it).
+  const t0 = Date.now()
+  const stamp = () => '+' + String(Date.now() - t0).padStart(5) + 'ms'
+  log('batch start: ' + calls.length + ' call(s) in ' + groups.size + ' server group(s)')
+  await Promise.all([...groups.values()].map(async (idxs) => {
+    for (const i of idxs) {
+      const { call, entry, err } = resolved[i]
+      if (!entry) { results[i] = { content: [text('Unknown tool "' + call.tool + '": ' + (err ?? 'call catalog first'))] }; continue }
+      log('batch #' + (i + 1) + ' ' + entry.server + ' start ' + stamp())
+      try { results[i] = await callTool({ tool: call.tool, arguments: call.arguments ?? {} }) }
+      catch (e) { results[i] = { content: [text('ERROR: ' + String(e?.message ?? e))] } }
+      log('batch #' + (i + 1) + ' ' + entry.server + ' end   ' + stamp())
+    }
+  }))
+  // Per-call errors stay in the text, never in isError: a top-level isError makes the
+  // DSH bridge throw and drop image blocks for the calls that DID succeed.
+  const content = []
+  results.forEach((r, i) => {
+    const c = calls[i]
+    content.push(text('\u2500\u2500 [' + (i + 1) + '] ' + (c.label ?? c.tool) + (resolved[i].entry ? '' : '  [UNRESOLVED]') + ' \u2500\u2500'))
+    for (const block of r.content ?? []) content.push(block)
+  })
+  return { content }
 }
 
 const resourceOwners = new Map()
@@ -302,6 +359,7 @@ async function handleMsg(msg) {
       if (name === 'catalog') return { jsonrpc: '2.0', id, result: { content: [text(await catalogText(a))] } }
       if (name === 'describe') return { jsonrpc: '2.0', id, result: { content: [text(await describeText(a))] } }
       if (name === 'call') return { jsonrpc: '2.0', id, result: await callTool(a) }
+      if (name === 'batch') return { jsonrpc: '2.0', id, result: await batchTools(a) }
       return { jsonrpc: '2.0', id, result: { content: [text('Unknown aggregator tool "' + name + '".')], isError: true } }
     } catch (err) {
       return { jsonrpc: '2.0', id, result: { content: [text('ERROR: ' + String(err?.message ?? err))], isError: true } }
