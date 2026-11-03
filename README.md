@@ -51,8 +51,26 @@
   并把其它成功调用返回的 image block 一起丢掉
 - 逐调用 `start/end` 偏移写入日志，并发与否直接读时间戳，不靠墙钟推断
   （实测：3 组同时 `+0ms` 起跑；同 server 的第 4 个调用等到前一个结束 `+96ms` 才起）
-- 上限：并发度等于分组数，也就是涉及的 server 个数；没有额外的并发上限保护，
-  24 路以上给同一批下游压测时自己注意对方能力
+- 上限：并发度等于分组数，也就是涉及的 server 个数；单次 batch 的调用数由 `maxBatchCalls`（默认 64）
+  截断，超了直接报错要求拆分。24 路以上给同一批下游压测时自己注意对方能力
+
+## 动态工具面：下游中途长出工具
+
+有些下游**在会话中途才长出工具**（按需 toolset、插件热加载、按项目加载的能力集）。快照只在连接时拍一次的话，
+这些工具虽然存在，调用却会被判成 `Unknown tool`。两条路径解决：
+
+1. **跟通知走（主路径）**：给 SDK 的 `Client` 传 `listChanged.tools.onChanged`，下游发
+   `notifications/tools/list_changed` 时自动重列并重建快照 —— 对模型可见的工具面不变，只是这份内部缓存变新。
+2. **未命中兜底（次路径）**：查找失败时对已连接的下游重列一次，再判「未知工具」，给**不**发通知的下游用；
+   只在未命中路径触发，热路径零成本，并发未命中共享一次刷新。
+
+实测（下游 = Konnect 0.12.1，226 个工具分 21 个按需 toolset）：
+
+```
+连上时                            22 tools   ← 只有 starter kit
+load_toolset(sch_analysis) 之后   47 tools   ← [mcp-agg] catalog live-updated（通知路径）
+未加载工具集的工具                 Unknown tool "konnect.add_schematic_component"（面仍然诚实）
+```
 
 ## 快速开始
 
@@ -121,7 +139,8 @@ url = "http://127.0.0.1:8877/mcp"
 
 ## 已知限制
 
-- **不支持 SSE 推送**（server→client 通知），只做请求/响应
+- **不向客户端透传 server→client 通知**：只做请求/响应。但 `notifications/tools/list_changed` 会在内部被
+  消费掉，用来刷新工具快照（见「动态工具面」）
 - **没有 OAuth 交互流程**：需要登录授权的 MCP 服务器请继续用客户端原生挂载
 - 超时只是放弃等待，**不会取消**下游调用
 - 单点：服务挂了所有下游都不可用（用 `Restart=always` 兜底）

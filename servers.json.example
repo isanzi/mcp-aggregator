@@ -3,6 +3,8 @@
   "callTimeoutMs": 240000,
   "connectTimeoutMs": 90000,
   "catalogWaitMs": 20000,
+  "preResolveWaitMs": 3000,
+  "maxBatchCalls": 64,
   "servers": [
     {
       "name": "eda",

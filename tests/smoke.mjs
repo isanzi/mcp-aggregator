@@ -19,8 +19,8 @@ await client.connect(new StdioClientTransport({ command: process.execPath, args:
 check('stdio handshake', true, Date.now() - t0 + 'ms')
 
 const list = await client.listTools()
-check('three tools', list.tools.map((t) => t.name).sort().join(',') === 'call,catalog,describe', list.tools.map((t) => t.name).join(','))
-check('declaration < 2KB', Buffer.byteLength(JSON.stringify(list.tools)) < 2048, Buffer.byteLength(JSON.stringify(list.tools)) + 'B')
+check('four tools', list.tools.map((t) => t.name).sort().join(',') === 'batch,call,catalog,describe', list.tools.map((t) => t.name).join(','))
+check('declaration < 2.5KB', Buffer.byteLength(JSON.stringify(list.tools)) < 2560, Buffer.byteLength(JSON.stringify(list.tools)) + 'B')
 
 const overview = txt(await client.callTool({ name: 'catalog', arguments: {} }))
 const expected = (cfg.servers ?? []).length

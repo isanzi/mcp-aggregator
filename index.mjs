@@ -15,8 +15,14 @@ const CFG = JSON.parse(readFileSync(process.env.AGG_CONFIG || join(HERE, 'server
 const DESC_WIDTH = CFG.descWidth ?? 84
 const CALL_TIMEOUT_MS = CFG.callTimeoutMs ?? 240000
 const CONNECT_TIMEOUT_MS = CFG.connectTimeoutMs ?? 90000
+// Fast path: how long a call waits for catalogs BEFORE it knows its server.
+// The remaining window is only paid when the tool is still unknown (cold start).
+const PRE_RESOLVE_WAIT_MS = Number(CFG.preResolveWaitMs ?? 3000)
+const MAX_BATCH_CALLS = Number(CFG.maxBatchCalls ?? 64)
+const MAX_BODY_BYTES = Number(CFG.maxBodyBytes ?? 16 * 1024 * 1024)
 
 const conns = new Map()
+const reconnectInFlight = new Map()   // per-server: one reconnect at a time (see ensureAlive)
 const log = (...a) => process.stderr.write('[mcp-agg] ' + a.join(' ') + '\n')
 
 function expand(value) {
@@ -28,7 +34,9 @@ function expand(value) {
 }
 
 function withTimeout(p, ms, label) {
-  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout: ' + label)), ms))])
+  let timer
+  const guard = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('timeout: ' + label)), ms) })
+  return Promise.race([p, guard]).finally(() => clearTimeout(timer))
 }
 
 function connect(name, spec) {
@@ -54,19 +62,29 @@ function connect(name, spec) {
         stderr: 'inherit',
       })
     }
-    const client = new Client({ name: 'mcp-aggregator', version: '1.0.0' }, { capabilities: {} })
+    // `listChanged` makes the snapshot LIVE: when a downstream announces
+    // notifications/tools/list_changed (konnect's load_toolset does exactly that), the SDK
+    // re-lists and hands us the fresh array. Without it the snapshot freezes at connect time
+    // and the aggregator answers "Unknown tool" for tools that genuinely exist.
+    // Only this cache changes: the model-facing surface stays the same 4 tools.
+    const client = new Client({ name: 'mcp-aggregator', version: '1.0.0' }, {
+      capabilities: {},
+      listChanged: {
+        tools: {
+          onChanged: (error, tools) => {
+            if (error) return log('catalog live-update failed', name, '->', String(error?.message ?? error))
+            if (!Array.isArray(tools)) return
+            setCatalog(entry, tools)
+            log('catalog live-updated', name, 'tools=' + entry.catalog.size)
+          },
+        },
+      },
+    })
     await withTimeout(client.connect(transport), CONNECT_TIMEOUT_MS, name + ' connect')
     entry.client = client
-    entry.connected = true
     const listed = await withTimeout(client.listTools(), CONNECT_TIMEOUT_MS, name + ' tools/list')
-    for (const t of listed.tools ?? []) {
-      entry.catalog.set(t.name, {
-        server: name,
-        tool: t.name,
-        description: (t.description ?? '').replace(/\s+/g, ' ').trim(),
-        schema: t.inputSchema ?? { type: 'object', properties: {} },
-      })
-    }
+    setCatalog(entry, listed.tools)
+    entry.connected = true
     log('connected', name, 'tools=' + entry.catalog.size)
   })().catch((err) => {
     entry.error = String(err?.message ?? err)
@@ -79,7 +97,9 @@ for (const s of CFG.servers ?? []) connect(s.name, s)
 
 async function waitAll(ms) {
   const pending = [...conns.values()].map((c) => c.ready)
-  await Promise.race([Promise.all(pending), new Promise((r) => setTimeout(r, ms))])
+  let timer
+  const stop = new Promise((r) => { timer = setTimeout(r, ms) })
+  try { await Promise.race([Promise.all(pending), stop]) } finally { clearTimeout(timer) }
   return [...conns.values()]
 }
 
@@ -99,6 +119,53 @@ const sig = (schema) => {
 }
 const short = (t, w) => (t.length <= w ? t : t.slice(0, w - 1) + '…')
 const norm = (s) => String(s).replace(/^mcp__/, '').replace(/\./g, '__')
+
+// The ONE place that turns a downstream tools/list into the catalog snapshot, so the
+// connect-time fill, the list_changed handler and the miss-path refresh cannot diverge.
+function setCatalog(entry, tools) {
+  entry.catalog.clear()
+  for (const t of tools ?? []) {
+    entry.catalog.set(t.name, {
+      server: entry.name,
+      tool: t.name,
+      description: (t.description ?? '').replace(/\s+/g, ' ').trim(),
+      schema: t.inputSchema ?? { type: 'object', properties: {} },
+    })
+  }
+}
+
+// Safety net for a downstream that grows tools without announcing it: re-list once, only
+// on a lookup miss (hot path untouched; concurrent misses share one refresh).
+let refreshInFlight = null
+function refreshCatalogs() {
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = (async () => {
+    const targets = [...conns.values()].filter((c) => c.client && c.connected)
+    await Promise.allSettled(targets.map(async (c) => {
+      const listed = await withTimeout(c.client.listTools(), PRE_RESOLVE_WAIT_MS, c.name + ' tools/list(refresh)')
+      setCatalog(c, listed.tools)
+      log('catalog refreshed', c.name, 'tools=' + c.catalog.size)
+    }))
+  })().finally(() => { refreshInFlight = null })
+  return refreshInFlight
+}
+
+// Resolve without blocking on every server: a healthy catalog answers in 0 ms, so
+// one slow downstream can no longer delay calls aimed at a healthy one (head-of-line block).
+async function resolveWithWait(ref) {
+  let e = resolveTool(ref)
+  if (e) return e
+  await waitAll(PRE_RESOLVE_WAIT_MS)
+  e = resolveTool(ref)
+  if (e) return e
+  // Only pay the full catalog window when a server is still starting (cold start).
+  if ([...conns.values()].some((c) => !c.connected && !c.error)) await waitAll(Number(CFG.catalogWaitMs ?? 20000))
+  e = resolveTool(ref)
+  if (e) return e
+  // Still unknown: the tool may have appeared after connect (dynamic toolsets) — re-list once.
+  await refreshCatalogs()
+  return resolveTool(ref)
+}
 
 function resolveTool(ref) {
   const clean = String(ref ?? '').trim()
@@ -156,17 +223,21 @@ const TOOLS = [
 ]
 
 async function catalogText(a) {
-  const servers = await waitAll(Number(CFG.catalogWaitMs ?? 20000))
+  const servers = await waitAll(PRE_RESOLVE_WAIT_MS)
   const q = String(a.query ?? '').trim().toLowerCase()
   const only = a.server ? String(a.server).toLowerCase() : null
   const limit = Number(a.limit ?? 40) || 40
   if (!q) {
+    const shownServers = only ? servers.filter((c) => c.name.toLowerCase() === only) : servers
+    if (only && !shownServers.length) {
+      return 'Unknown server "' + a.server + '". Mounted: ' + servers.map((c) => c.name).join(', ') + '.'
+    }
     const ready = servers.filter((c) => !c.error)
     const pending = servers.filter((c) => c.error === null && !c.connected)
-    const lines = servers.map((c) => '- ' + c.name + ': ' + (c.error ? 'UNAVAILABLE (' + c.error + ')' : c.catalog.size + ' tools'))
+    const lines = shownServers.map((c) => '- ' + c.name + ': ' + (c.error ? 'UNAVAILABLE (' + c.error + ')' : c.catalog.size + ' tools'))
     const total = ready.reduce((n, c) => n + c.catalog.size, 0)
     return 'MCP aggregator: ' + total + ' tools on ' + ready.length + '/' + servers.length + ' servers'
-      + (pending.length ? ' (still starting: ' + pending.map((c) => c.name).join(', ') + ')' : '')
+      + (pending.length ? ' (still starting: ' + pending.map((c) => c.name).join(', ') + ' — call catalog again in a few seconds)' : '')
       + '.\n' + lines.join('\n')
       + '\n\nNext: catalog({query:"<keyword>"}) → call({tool:"server.tool", arguments:{…}}).'
   }
@@ -187,44 +258,81 @@ async function catalogText(a) {
 }
 
 async function describeText(a) {
-  await waitAll(Number(CFG.catalogWaitMs ?? 20000))
-  const e = resolveTool(a.tool)
+  let e = resolveTool(a.tool)
+  if (!e) await waitAll(PRE_RESOLVE_WAIT_MS)
+  if (!e && [...conns.values()].some((c) => !c.connected && !c.error)) {
+    await waitAll(Number(CFG.catalogWaitMs ?? 20000))
+    e = resolveTool(a.tool)
+  }
   if (!e) return 'Unknown tool "' + a.tool + '". Call catalog first.'
   return e.server + '.' + e.tool + '\n\n' + (e.description || '(no description)') + '\n\nparameters:\n' + JSON.stringify(e.schema, null, 2)
 }
 
 async function ensureAlive(c, force = false) {
   if (!force && c.client && !c.error) return c
-  log('reconnecting', c.name)
-  const spec = c.spec
-  conns.delete(c.name)
-  c.client = null
-  c.catalog.clear()
-  c.error = null
-  c.connected = false
-  const fresh = connect(c.name, spec)
-  await fresh.ready
-  if (fresh.error) throw new Error('server "' + c.name + '" unavailable: ' + fresh.error)
-  return fresh
+  // One reconnect per server at a time: without this, N concurrent failures each
+  // called conns.delete + connect, leaving N-1 orphaned downstream processes.
+  const running = reconnectInFlight.get(c.name)
+  if (running) return running
+  const p = (async () => {
+    log('reconnecting', c.name)
+    const spec = c.spec
+    const oldClient = c.client          // 先抓引用：old === c，置 null 之后就拿不到旧 client 了
+    c.client = null
+    c.catalog.clear()
+    c.error = null
+    c.connected = false
+    conns.delete(c.name)
+    const fresh = connect(c.name, spec)      // re-registers in conns synchronously
+    try { await oldClient?.close() } catch {}
+    await fresh.ready
+    if (fresh.error) throw new Error('server "' + c.name + '" unavailable: ' + fresh.error)
+    return fresh
+  })().finally(() => reconnectInFlight.delete(c.name))
+  reconnectInFlight.set(c.name, p)
+  return p
 }
 
-const looksDisconnected = (err) => /Not connected|closed|disconnect|EPIPE|ECONNRESET|transport/i.test(String(err?.message ?? err))
+// Failure taxonomy. A replay is only safe when the downstream provably never ran the
+// call — a JSON-RPC error with a numeric code came FROM the tool (it ran and failed),
+// and a timeout/connection loss may have half-executed. Only SdkError(NotConnected)
+// throws BEFORE the request is sent, so that is the one case we retry.
+const isRpcError = (err) => typeof err?.code === 'number'
+const isTimeout = (err) => err?.name === 'AbortError'
+  || /^(REQUEST_TIMEOUT|RequestTimeout)$/i.test(String(err?.code ?? ''))
+  || /^(Request timed out|timeout:)/.test(String(err?.message ?? ''))
+const isPreSendFailure = (err) => /^NOT_?CONNECTED$/i.test(String(err?.code ?? ''))
+  || /^Not connected$/.test(String(err?.message ?? ''))
+const looksDisconnected = (err) => !isRpcError(err)
+  && /Not connected|closed|disconnect|EPIPE|ECONNRESET|socket hang up|transport/i.test(String(err?.message ?? err))
 
 async function callTool(a) {
-  await waitAll(Number(CFG.catalogWaitMs ?? 20000))
-  let e = resolveTool(a.tool)
+  let e = await resolveWithWait(a.tool)
   if (!e) return { content: [text('Unknown tool "' + a.tool + '". Call catalog first.')], isError: true }
   let c = await waitOne(e.server)
-  const invoke = () => withTimeout(
-    c.client.callTool({ name: e.tool, arguments: a.arguments ?? {} }),
-    c.spec?.callTimeoutMs ?? CALL_TIMEOUT_MS,
-    e.server + '.' + e.tool,
+  // The SDK's own per-request timeout aborts the request (and tells the downstream to
+  // cancel); racing our own timer left the request in flight, blocking serial servers.
+  const invoke = () => c.client.callTool(
+    { name: e.tool, arguments: a.arguments ?? {} },
+    { timeout: c.spec?.callTimeoutMs ?? CALL_TIMEOUT_MS },
   )
   let res
   try {
     res = await invoke()
   } catch (err) {
-    if (!looksDisconnected(err)) throw err
+    if (!isPreSendFailure(err)) {
+      if (looksDisconnected(err) && !isTimeout(err)) {
+        // Never replay: the tool may have executed before the link died. Repair the
+        // link in the background so the NEXT call is healthy.
+        log('link error on', e.server, '(' + String(err?.message ?? err).slice(0, 120) + ') — reconnecting, not replaying')
+        ensureAlive(c, true).catch(() => {})
+      }
+      if (isTimeout(err)) {
+        throw new Error(e.server + '.' + e.tool + ' 超时（' + Math.round((c.spec?.callTimeoutMs ?? CALL_TIMEOUT_MS) / 1000)
+          + 's）：已向下游发出取消通知。若该下游不实现 cancellation，它可能仍在执行，后续同 server 的调用会排队等它。')
+      }
+      throw err
+    }
     c = await ensureAlive(c, true)
     e = resolveTool(a.tool) ?? e
     res = await invoke()
@@ -236,13 +344,32 @@ async function callTool(a) {
 }
 
 async function batchTools(a) {
-  await waitAll(Number(CFG.catalogWaitMs ?? 20000))
+  await waitAll(PRE_RESOLVE_WAIT_MS)
   const calls = Array.isArray(a.calls) ? a.calls.filter((c) => c && typeof c === 'object') : []
   if (!calls.length) return { content: [text('batch: pass calls:[{tool, arguments, label?}]')], isError: true }
-  const resolved = calls.map((c) => {
+  if (calls.length > MAX_BATCH_CALLS) {
+    return { content: [text('batch: ' + calls.length + ' calls exceeds the limit of ' + MAX_BATCH_CALLS + '; split it.')], isError: true }
+  }
+  let resolved = calls.map((c) => {
     try { return { call: c, entry: resolveTool(c.tool) } }
     catch (err) { return { call: c, entry: null, err: String(err?.message ?? err) } }
   })
+  if (resolved.some((r) => !r.entry && !r.err)) {
+    // Cold start: catalogs may still be filling in — pay the full window once.
+    await waitAll(Number(CFG.catalogWaitMs ?? 20000))
+    resolved = calls.map((c) => {
+      try { return { call: c, entry: resolveTool(c.tool) } }
+      catch (err) { return { call: c, entry: null, err: String(err?.message ?? err) } }
+    })
+  }
+  if (resolved.some((r) => !r.entry && !r.err)) {
+    // Dynamic toolsets (e.g. konnect load_toolset): re-list once before giving up.
+    await refreshCatalogs()
+    resolved = calls.map((c) => {
+      try { return { call: c, entry: resolveTool(c.tool) } }
+      catch (err) { return { call: c, entry: null, err: String(err?.message ?? err) } }
+    })
+  }
   // Group by owning server: one downstream owns ONE channel, so calls into the same
   // server stay sequential (same stdio client / same EDA bridge); servers run concurrently.
   const groups = new Map()
@@ -321,21 +448,28 @@ async function resourceRead(uri) {
   await waitAll(Number(CFG.catalogWaitMs ?? 20000))
   const owner = resourceOwners.get(uri)
   if (!owner) {
+    let lastErr = null
     for (const c of conns.values()) {
-      if (!c.client) continue
-      try { return await withTimeout(c.client.readResource({ uri }), 30000, 'resources/read ' + c.name) } catch {}
+      if (!c.client || !serverSupports(c, 'resources')) continue
+      try {
+        // A hit must come back with contents; an empty answer means "not mine".
+        const res = await withTimeout(c.client.readResource({ uri }), 30000, 'resources/read ' + c.name)
+        if (res && Array.isArray(res.contents) && res.contents.length) { resourceOwners.set(uri, c.name); return res }
+      } catch (err) { lastErr = err }
     }
-    throw new Error('unknown resource uri: ' + uri)
+    throw new Error('unknown resource uri: ' + uri + (lastErr ? ' (last error: ' + String(lastErr?.message ?? lastErr) + ')' : ''))
   }
   const c = await waitOne(owner)
   return await withTimeout(c.client.readResource({ uri }), 30000, owner + ' resources/read')
 }
 
 
+const PROTOCOL_VERSIONS = new Set(['2024-11-05', '2025-03-26', '2025-06-18'])
+
 async function handleMsg(msg) {
   const { id, method, params } = msg
   if (method === 'initialize') return { jsonrpc: '2.0', id, result: {
-    protocolVersion: params?.protocolVersion ?? '2025-06-18',
+    protocolVersion: PROTOCOL_VERSIONS.has(params?.protocolVersion) ? params.protocolVersion : '2025-06-18',
     capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } },
     serverInfo: { name: 'mcp-aggregator', version: '1.0.0' },
   } }
@@ -398,7 +532,17 @@ if (HTTP_PORT > 0) {
     if (req.method === 'DELETE') { res.writeHead(200).end(); return }
     if (req.method !== 'POST') { res.writeHead(405, { allow: 'POST' }).end(); return }
     const chunks = []
-    for await (const chunk of req) chunks.push(chunk)
+    let size = 0
+    for await (const chunk of req) {
+      size += chunk.length
+      if (size > MAX_BODY_BYTES) {
+        res.writeHead(413, { 'content-type': 'application/json' })
+        res.end('{"jsonrpc":"2.0","error":{"code":-32600,"message":"request body too large"}}')
+        req.destroy()
+        return
+      }
+      chunks.push(chunk)
+    }
     let body
     try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch {
       res.writeHead(400, { 'content-type': 'application/json' })
@@ -421,6 +565,11 @@ if (HTTP_PORT > 0) {
 }
 
 // ---- lifecycle ----
+// This process owns the whole MCP surface: one stray rejection must not take every
+// downstream down (and with it the tools of a running session). Log and keep serving.
+process.on('unhandledRejection', (e) => log('unhandledRejection:', String(e?.stack ?? e)))
+process.on('uncaughtException', (e) => log('uncaughtException:', String(e?.stack ?? e)))
+
 async function shutdown() {
   for (const c of conns.values()) { try { await c.client?.close() } catch {} }
   process.exit(0)
