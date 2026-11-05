@@ -189,7 +189,11 @@ url = "http://127.0.0.1:8877/mcp"
 ```bash
 node tests/smoke.mjs                      # stdio 冒烟（自动发现 servers.json 里的服务器）
 AGG_URL=http://127.0.0.1:8877/mcp node tests/http.mjs   # HTTP 边缘用例
+AGG_URL=http://127.0.0.1:8877/mcp node tests/probe.mjs  # 核心语义回归：幂等 / 工具面生命周期 / 会话隔离 / batch 错误隔离 / 错误路径
 ```
+
+`probe.mjs` 是**改完就复测**的那一条：11 项检查、约 5 s、只读为主（末尾必 `unload` 复原），
+退出码非 0 即有用例失败。实测（2026-11-05，15 下游 / 400 工具）：`11/11 passed`。
 
 ## License
 
