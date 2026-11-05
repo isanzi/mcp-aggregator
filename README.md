@@ -72,6 +72,35 @@ load_toolset(sch_analysis) 之后   47 tools   ← [mcp-agg] catalog live-update
 未加载工具集的工具                 Unknown tool "konnect.add_schematic_component"（面仍然诚实）
 ```
 
+## load：把折叠的工具按需装进工具面（第 5 个工具）
+
+聚合器把几百个工具折成 4 个，代价是「直接用 `call` 时看不到工具的完整说明」（判据、字段语义、已知坑）。
+`load` 补这一环，**三档代价差 100 倍量级**：
+
+| 意图 | 调用 | 常驻成本 | 提示缓存 |
+|---|---|---|---|
+| 看索引（哪个工具干什么） | `load({server:"eda"})` | 0 | 不变 |
+| 读完整声明（description + JSON schema） | `load({tools:["eda.draw_wire"]})` | 0 | 不变（只是往对话里追加文本） |
+| 装成原生工具（schema 校验、按名字直调） | `load({tools:[…], promote:true})` | 每轮 schema tokens | **整段 cache miss 一次** |
+| 卸载 | `load({unload:true, all:true})` | 归零 | 再一次 miss |
+
+- 预算：索引 6000 B / 全量声明 12288 B（`hub` 段可调），超了会列 over-budget 清单让你分批。
+- **一次装齐**：`load({tools:[a,b,c], promote:true})` 只触发一次工具面变化；分三次装 = 三次整段 miss。
+- 已装集合**按 `mcp-session-id` 分桶**（上限 16 个会话，LRU），`initialize` 只清自己那份 ——
+  多个客户端（如 DSH + Codex）共用一个聚合器时互不干扰。
+
+### 客户端要求（重要）
+
+装进工具面只是服务端的一半，**客户端必须重新列工具**，否则对它不可见。两条路：
+
+1. `notifications/tools/list_changed`（主路径）：服务端在 `load` 那次 POST 的响应流里以 SSE 下发通知；
+   `/mcp` 的 **GET 长连接**也支持 push（`accept: text/event-stream`）。
+2. 客户端轮询（兜底）：定期 `tools/list` 后重建工具注册 —— 对「不消费通知」的客户端（例如
+   `@deepseek-ai/dsh-mcp-client` 0.2.2-rc.1：不建 GET 通道、收到通知也不重列）只能走这条。
+   参考实现见 [docs/dynamic-tool-face.md](docs/dynamic-tool-face.md)（约 12 行补丁，env 开关 `MCP_TOOLS_POLL_MS`）。
+
+> 实测：工具面每变一次，那次请求的提示缓存整段失效（19.5 万 tokens 走全价）；不变时稳态命中 99.7–99.9%。
+
 ## 快速开始
 
 ```bash
@@ -101,6 +130,8 @@ systemctl --user daemon-reload && systemctl --user enable --now mcp-aggregator
   "descWidth": 84,
   "callTimeoutMs": 240000,
   "catalogWaitMs": 20000,
+  "hub": { "name": "load", "lineWidth": 96, "indexBudgetBytes": 6000, "fullBudgetBytes": 12288 },
+  "enforceSession": false,
   "servers": [
     { "name": "eda", "command": "node", "args": ["/opt/eda-mcp/dist/index.js"], "cwd": "/opt/eda-mcp" },
     { "name": "remote", "url": "https://example.com/mcp", "headers": { "Authorization": "Bearer ${file:~/.token}" } },
@@ -111,6 +142,9 @@ systemctl --user daemon-reload && systemctl --user enable --now mcp-aggregator
 
 - `${env:NAME}` / `${file:~/path}` 两种占位符可用于 header（避免把 token 写进文件）
 - 逐服务器 `callTimeoutMs` 覆盖全局值
+- `hub`：第 5 个工具 `load` 的名字与预算（见上节）；`enforceSession`: `true` 时对未知/过期
+  `mcp-session-id` 回 `404 -32001`（MCP 规范的"重新握手"信号）。注意：**有些客户端收到 404 不会重连、
+  而是直接把错误抛给调用方**（实测 `dsh-mcp-client` 如此）⇒ 默认 `false`（只告警）
 - 改完 `systemctl --user restart mcp-aggregator` 生效
 
 ## 接到客户端

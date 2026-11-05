@@ -5,6 +5,8 @@
   "catalogWaitMs": 20000,
   "preResolveWaitMs": 3000,
   "maxBatchCalls": 64,
+  "hub": { "name": "load", "lineWidth": 96, "indexBudgetBytes": 6000, "fullBudgetBytes": 12288 },
+  "enforceSession": false,
   "servers": [
     {
       "name": "eda",

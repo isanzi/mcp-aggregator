@@ -13,6 +13,12 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const CFG = JSON.parse(readFileSync(process.env.AGG_CONFIG || join(HERE, 'servers.json'), 'utf8'))
 const DESC_WIDTH = CFG.descWidth ?? 84
+// hub "load": index + on-demand FULL declarations. Folding stays; you pay only for what you load.
+const HUB = CFG.hub ?? {}
+const HUB_NAME = String(HUB.name ?? 'load')
+const HUB_LINE = Number(HUB.lineWidth ?? 96)
+const HUB_INDEX_BUDGET = Number(HUB.indexBudgetBytes ?? 6000)
+const HUB_FULL_BUDGET = Number(HUB.fullBudgetBytes ?? 12288)
 const CALL_TIMEOUT_MS = CFG.callTimeoutMs ?? 240000
 const CONNECT_TIMEOUT_MS = CFG.connectTimeoutMs ?? 90000
 // Fast path: how long a call waits for catalogs BEFORE it knows its server.
@@ -200,7 +206,8 @@ const TOOLS = [
   },
   {
     name: 'call',
-    description: 'Invoke one catalogued MCP tool and return its result verbatim (text and images).',
+    description: 'Invoke one catalogued MCP tool and return its result verbatim (text and images). '
+      + 'Unfamiliar with a tool description/pitfalls? Call load({tools:["<server>.<tool>"]}) first to pull its full declaration.',
     inputSchema: { type: 'object', properties: {
       tool: { type: 'string', description: 'server.tool, mcp__server__tool, or a unique bare tool name.' },
       arguments: { type: 'object', description: 'Arguments object; omit when the tool takes none.' },
@@ -219,6 +226,22 @@ const TOOLS = [
         label: { type: 'string', description: 'Optional label echoed in the result header.' },
       }, required: ['tool'] } },
     }, required: ['calls'] },
+  },
+  {
+    name: HUB_NAME,
+    description: 'WARNING: call me BEFORE invoking unfamiliar tools - hub index + on-demand FULL declarations. '
+      + 'This aggregator folds every downstream tool into catalog/describe/call/batch, so a bare call() loses the tool description (rules, field semantics, known pitfalls). '
+      + 'load({}) = usage; load({server:"lceda-tools"}) = one-line index of that server; '
+      + 'load({tools:["lceda-tools.lceda_batch","lceda-tools.lceda_symbol_create"]}) = full description + JSON schema of exactly those; '
+      + 'load({server, full:true}) = whole server, budgeted. Zero standing cost: you pay only for what you load.',
+    inputSchema: { type: 'object', properties: {
+      server: { type: 'string', description: 'Server name, e.g. "lceda-tools". Returns its full one-line index.' },
+      tools: { type: 'array', items: { type: 'string' }, description: 'server.tool refs whose FULL declaration you want.' },
+      full: { type: 'boolean', description: 'With server: load full declarations for all its tools (subject to budget).' },
+      promote: { type: 'boolean', description: 'ALSO install the tool into the live tool face (native call, schema-validated). Costs one full prompt-cache miss per change, then ~per-turn standing schema tokens; only worth it for tools you will call repeatedly. Default false = read-only.' },
+      unload: { type: 'boolean', description: 'Remove from the tool face (with tools:[...] or all:true). One more cache miss, then standing cost returns to zero.' },
+      all: { type: 'boolean', description: 'With unload: drop every promoted tool.' },
+    } },
   },
 ]
 
@@ -267,6 +290,117 @@ async function describeText(a) {
   if (!e) return 'Unknown tool "' + a.tool + '". Call catalog first.'
   return e.server + '.' + e.tool + '\n\n' + (e.description || '(no description)') + '\n\nparameters:\n' + JSON.stringify(e.schema, null, 2)
 }
+
+// ---- B 试验：已装载集合 + 变更标志 ----
+// 已装载集合按 mcp-session-id 分桶：DSH 与 Codex 共用一个聚合器进程，一方 initialize 不能清掉另一方装好的工具
+const LOADED_SESSIONS = new Map()   // sid -> Map(toolName -> entry)
+const HUB_CHANGED = new Set()       // 有变化的 sid
+const ANON = 'anon'
+const sidOf = function (sid) { return sid || ANON }
+const sbag = function (sid) {
+  const k = sidOf(sid)
+  let m = LOADED_SESSIONS.get(k)
+  if (!m) {
+    m = new Map()
+    LOADED_SESSIONS.set(k, m)
+    if (LOADED_SESSIONS.size > 16) { const oldest = LOADED_SESSIONS.keys().next().value; if (oldest !== k) LOADED_SESSIONS.delete(oldest) }
+  }
+  return m
+}
+const SSE_CLIENTS = new Set()   // GET 长连接（server->client 推送通道）
+// ---- 会话校验（MCP Streamable HTTP 合规）：initialize 发新 id，后续请求必须携带，未知会话按规范回 404 让客户端重新握手 ----
+const ENFORCE_SESSION = CFG.enforceSession !== false
+const SESSIONS = new Set()
+let SESS_SEQ = 0
+const newSessionId = function () { return 'agg-' + process.pid + '-' + (++SESS_SEQ) + '-' + Date.now().toString(36) }
+const notifyListChanged = function () {
+  let n = 0
+  for (const r of SSE_CLIENTS) { try { r.write('data: ' + JSON.stringify({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' }) + '\n\n'); n++ } catch (e) {} }
+  if (process.env.AGG_TRACE) log('list_changed pushed to ' + n + ' sse stream(s)')
+  return n
+}
+// ---- hub: 索引 + 按需全量声明（聚合器目标不变，按工具粒度付费） ----
+const hubOneLine = (e) => {
+  const req = (e.schema?.required ?? []).join(',')
+  return e.server + '.' + e.tool + '(' + req + ') — ' + short(String(e.description ?? '').replace(/\s+/g, ' '), HUB_LINE)
+}
+const hubFull = (e) => e.server + '.' + e.tool
+  + '\n' + String(e.description ?? '(no description)')
+  + '\n\nparameters:\n' + JSON.stringify(e.schema ?? { type: 'object', properties: {} }, null, 2)
+
+async function hubText(a, sid) {
+  const bag = sbag(sid)
+  await waitAll(PRE_RESOLVE_WAIT_MS)
+  const mounted = [...conns.values()]
+  const wantServer = a.server ? String(a.server).trim().toLowerCase() : null
+  const wantTools = Array.isArray(a.tools) ? a.tools.map((x) => String(x)) : []
+  const full = a.full === true
+  if (a.unload === true) {
+    const removed = []
+    if (a.all === true) { for (const k of [...bag.keys()]) { bag.delete(k); removed.push(k) } }
+    else for (const n of wantTools) { const key = String(n).split('.').pop(); if (bag.has(key)) { bag.delete(key); removed.push(key) } }
+    if (removed.length) { HUB_CHANGED.add(sidOf(sid)); return 'unloaded ' + removed.length + ' tool(s): ' + removed.join(', ') + ' — tool face shrinks on the next client poll' }
+    return 'nothing to unload (currently loaded: ' + ([...bag.keys()].join(', ') || 'none') + ')'
+  }
+
+  if (!wantServer && !wantTools.length) {
+    const total = mounted.reduce((n, c) => n + (c.catalog ? c.catalog.size : 0), 0)
+    return 'hub: ' + total + ' tools are folded into catalog/describe/call/batch. Call me before invoking unfamiliar tools.\n'
+      + '  load({server:"<name>"})              -> one-line index of that server\n'
+      + '  load({tools:["<server>.<tool>",...]}) -> index + FULL description & schema (you pay only for these)\n'
+      + '  load({server:"<name>", full:true})   -> whole server in full (' + HUB_FULL_BUDGET + ' B budget; batch if truncated)\n'
+      + 'Mounted: ' + mounted.map((c) => c.name + ':' + (c.error ? 'UNAVAILABLE' : (c.catalog ? c.catalog.size : 0))).join('  ')
+  }
+
+  const picked = [], missing = []
+  for (const n of wantTools) { const e = resolveTool(n); if (e) picked.push(e); else missing.push(n) }
+
+  let pool = []
+  if (wantServer) {
+    const c = mounted.find((x) => String(x.name).toLowerCase() === wantServer)
+    if (!c) return 'Unknown server "' + a.server + '". Mounted: ' + mounted.map((x) => x.name).join(', ')
+    if (c.error) return c.name + ' is UNAVAILABLE (' + c.error + ')'
+    pool = [...c.catalog.values()].sort((x, y) => String(x.tool).localeCompare(String(y.tool)))
+  }
+
+  const out = []
+  if (pool.length) {
+    const idx = pool.map(hubOneLine).join('\n')
+    out.push('[index] ' + pool[0].server + ' (' + pool.length + ' tools, ' + idx.length + ' B)\n' + short(idx, HUB_INDEX_BUDGET))
+    if (full) picked.push(...pool)
+    else out.push('\nnext: load({tools:["' + pool[0].server + '.<tool>"]}) for one full declaration, or load({server:"' + pool[0].server + '", full:true}).')
+  }
+
+  const seen = new Set(), decls = [], skipped = []
+  let used = 0
+  for (const e of picked) {
+    const k = e.server + '.' + e.tool
+    if (seen.has(k)) continue
+    seen.add(k)
+    const d = hubFull(e)
+    if (used + d.length > HUB_FULL_BUDGET) { skipped.push(k); continue }
+    used += d.length
+    decls.push(d)
+  }
+  // 装载会改提示前缀 → 整段 cache miss（实测一次 ≈19.5 万 tokens 全价）。所以"读说明书"（默认）与"装进工具面"（promote:true）必须分开。
+  var promote = a.promote === true
+  var promoted = []
+  if (decls.length) {
+    const blob = decls.join('\n')
+    for (const e of picked) {
+      const k = e.server + '.' + e.tool
+      if (blob.indexOf(k) < 0) continue
+      if (!promote) break
+      if (!bag.has(e.tool)) { bag.set(e.tool, e); promoted.push(e.tool) }
+    }
+    if (promoted.length) { HUB_CHANGED.add(sidOf(sid)); out.push('\n[promoted] ' + promoted.length + ' tool(s) joined the tool face: ' + promoted.join(', ')) }
+    out.push('\n[full declaration] ' + decls.length + ' tool(s), ' + used + ' B\n\n' + decls.join('\n\n---\n\n'))
+  }
+  if (missing.length) out.push('\nnot found: ' + missing.join(', '))
+  if (skipped.length) out.push('\nover budget, not loaded (call again in batches): ' + skipped.join(', '))
+  return out.length ? out.join('\n') : '(nothing to load)'
+}
+
 
 async function ensureAlive(c, force = false) {
   if (!force && c.client && !c.error) return c
@@ -466,14 +600,16 @@ async function resourceRead(uri) {
 
 const PROTOCOL_VERSIONS = new Set(['2024-11-05', '2025-03-26', '2025-06-18'])
 
-async function handleMsg(msg) {
+async function handleMsg(msg, sid) {
   const { id, method, params } = msg
+  // 每次客户端建立会话时清空已装载集合：避免长跑进程里提升的工具无限累积（跨会话共享的聚合器必须这样隔离）
+  if (method === 'initialize') { LOADED_SESSIONS.delete(sidOf(sid)); HUB_CHANGED.delete(sidOf(sid)) }
   if (method === 'initialize') return { jsonrpc: '2.0', id, result: {
     protocolVersion: PROTOCOL_VERSIONS.has(params?.protocolVersion) ? params.protocolVersion : '2025-06-18',
-    capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } },
+    capabilities: { tools: { listChanged: true }, resources: { subscribe: false, listChanged: false } },
     serverInfo: { name: 'mcp-aggregator', version: '1.0.0' },
   } }
-  if (method === 'tools/list') return { jsonrpc: '2.0', id, result: { tools: TOOLS } }
+  if (method === 'tools/list') return { jsonrpc: '2.0', id, result: { tools: TOOLS.concat([...sbag(sid).values()].map((e) => ({ name: e.tool, description: e.description, inputSchema: e.schema }))) } }
   if (method === 'ping') return { jsonrpc: '2.0', id, result: {} }
   if (method === 'resources/list') {
     try { return { jsonrpc: '2.0', id, result: { resources: await resourcesList() } } }
@@ -492,6 +628,8 @@ async function handleMsg(msg) {
     try {
       if (name === 'catalog') return { jsonrpc: '2.0', id, result: { content: [text(await catalogText(a))] } }
       if (name === 'describe') return { jsonrpc: '2.0', id, result: { content: [text(await describeText(a))] } }
+      if (name === HUB_NAME) return { jsonrpc: '2.0', id, result: { content: [text(await hubText(a, sid))] } }
+      if (sbag(sid).has(name)) return { jsonrpc: '2.0', id, result: await callTool({ tool: sbag(sid).get(name).server + '.' + name, arguments: a }) }
       if (name === 'call') return { jsonrpc: '2.0', id, result: await callTool(a) }
       if (name === 'batch') return { jsonrpc: '2.0', id, result: await batchTools(a) }
       return { jsonrpc: '2.0', id, result: { content: [text('Unknown aggregator tool "' + name + '".')], isError: true } }
@@ -524,9 +662,19 @@ if (HTTP_PORT > 0) {
     const url = req.url ?? '/'
     if (!url.startsWith('/mcp')) { res.writeHead(404).end(); return }
     if (req.method === 'GET') {
-      // 不支持 server->client SSE 推送；告知能力
-      res.writeHead(405, { 'content-type': 'application/json', allow: 'POST' })
-      res.end('{"jsonrpc":"2.0","error":{"code":-32000,"message":"SSE stream not offered; use POST"}}')
+      const acc = String(req.headers.accept || '')
+      if (acc.indexOf('text/event-stream') >= 0) {
+        // B: 实现 server->client 的 SSE 长连接（MCP Streamable HTTP 的 GET 通道）
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'connection': 'keep-alive', 'mcp-session-id': SESSION_ID })
+        res.write(': connected\n\n')
+        SSE_CLIENTS.add(res)
+        if (process.env.AGG_TRACE) log('GET sse stream opened (clients=' + SSE_CLIENTS.size + ')')
+        const ka = setInterval(function () { try { res.write(': ka\n\n') } catch (e) {} }, 20000)
+        req.on('close', function () { clearInterval(ka); SSE_CLIENTS.delete(res); if (process.env.AGG_TRACE) log('GET sse stream closed (clients=' + SSE_CLIENTS.size + ')') })
+        return
+      }
+      res.writeHead(405, { 'content-type': 'application/json', allow: 'POST, GET' })
+      res.end('{"jsonrpc":"2.0","error":{"code":-32000,"message":"send accept: text/event-stream to open the SSE channel"}}')
       return
     }
     if (req.method === 'DELETE') { res.writeHead(200).end(); return }
@@ -549,15 +697,46 @@ if (HTTP_PORT > 0) {
       res.end('{"jsonrpc":"2.0","error":{"code":-32700,"message":"parse error"}}')
       return
     }
+    if (process.env.AGG_TRACE) log('POST ' + (Array.isArray(body) ? '[batch]' : String(body && body.method) + ':' + String((body && body.params && body.params.name) || '')) + ' accept=' + String(req.headers.accept || '-'))
     const batch = Array.isArray(body)
+    const __isInit = !batch && body && body.method === 'initialize'
+    const __hdrSess = String(req.headers['mcp-session-id'] || '')
+    let __sid = SESSION_ID
+    if (__isInit) { __sid = newSessionId(); SESSIONS.add(__sid) }
+    else if (__hdrSess) {
+      if (SESSIONS.has(__hdrSess)) __sid = __hdrSess
+      else {
+        if (process.env.AGG_TRACE) log('stale session ' + __hdrSess + ' (known=' + SESSIONS.size + ') ' + (ENFORCE_SESSION ? '-> 404 re-initialize' : '-> served anyway'))
+        if (ENFORCE_SESSION) {
+          res.writeHead(404, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ jsonrpc: '2.0', id: body && body.id, error: { code: -32001, message: 'session expired: re-initialize (missing/unknown mcp-session-id)' } }))
+          return
+        }
+        __sid = __hdrSess
+      }
+    }
+    if (process.env.AGG_TRACE && __isInit) log('initialize -> session ' + __sid)
     const out = []
     for (const msg of batch ? body : [body]) {
       if (msg?.id === undefined) continue           // notification: swallow
-      try { const r = await handleMsg(msg); if (r) out.push(r) }
+      if (msg && msg.method === 'tools/list') log('http tools/list from client (accept=' + String(req.headers.accept || '-') + ')')
+      try { const r = await handleMsg(msg, __sid); if (r) out.push(r) }
       catch (e) { out.push({ jsonrpc: '2.0', id: msg.id, error: { code: -32603, message: String(e) } }) }
     }
-    const headers = { 'content-type': 'application/json', 'mcp-session-id': SESSION_ID }
+    const headers = { 'content-type': 'application/json', 'mcp-session-id': __sid }
     if (out.length === 0) { res.writeHead(202, headers).end(); return }
+    const wantsSSE = String(req.headers.accept || '').indexOf('text/event-stream') >= 0
+    if (HUB_CHANGED.has(sidOf(__sid))) { notifyListChanged(); HUB_CHANGED.delete(sidOf(__sid)) }
+    if (process.env.AGG_TRACE && !wantsSSE) log('no sse accept, accept=' + String(req.headers.accept || '-'))
+    if (wantsSSE && HUB_CHANGED.has(sidOf(__sid))) {
+      HUB_CHANGED.delete(sidOf(__sid))
+      if (process.env.AGG_TRACE) log('SSE notify sent (tools/list_changed)')
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'mcp-session-id': __sid })
+      res.write('data: ' + JSON.stringify(batch ? out : out[0]) + '\n\n')
+      res.write('data: ' + JSON.stringify({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' }) + '\n\n')
+      res.end()
+      return
+    }
     res.writeHead(200, headers)
     res.end(JSON.stringify(batch ? out : out[0]))
   })
