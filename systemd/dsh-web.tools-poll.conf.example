@@ -1,0 +1,8 @@
+# drop-in：让 DSH 的 mcp-client 定期重列工具面（配合聚合器 load({...,promote:true})）
+# 安装：
+#   mkdir -p ~/.config/systemd/user/dsh-web.service.d
+#   cp systemd/dsh-web.tools-poll.conf.example ~/.config/systemd/user/dsh-web.service.d/tools-poll.conf
+#   systemctl --user daemon-reload && systemctl --user restart dsh-web
+# 注意：前提是已应用 patches/dsh-mcp-client-tools-poll.patch；不设这个变量时补丁完全不生效（默认 0）。
+[Service]
+Environment=DSH_MCP_TOOLS_POLL_MS=30000

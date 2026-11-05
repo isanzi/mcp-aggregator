@@ -26,7 +26,7 @@ MCP SDK 本身是支持的（`method:"GET"` + `accept: text/event-stream` + `_on
 let pollTimer;
 
 // ② 首次同步成功之后（serverInstructions = instructions; 附近）
-const pollMs = Number(process.env.MCP_TOOLS_POLL_MS ?? 0);
+const pollMs = Number(process.env.DSH_MCP_TOOLS_POLL_MS ?? 0);
 if (pollMs >= 3000 && pollTimer === void 0) {
   pollTimer = setInterval(() => {
     if (!isCurrent(generation)) {            // 换代会自清，避免旧定时器悬挂
@@ -47,7 +47,7 @@ if (pollTimer !== void 0) { clearInterval(pollTimer); pollTimer = void 0; }
 
 ```ini
 [Service]
-Environment=MCP_TOOLS_POLL_MS=30000
+Environment=DSH_MCP_TOOLS_POLL_MS=30000
 ```
 
 `syncTools()` 本来就会 `dispose()` 旧注册再 `ctx.tools.register()` 新定义，所以**工具面热更新是现成能力**，

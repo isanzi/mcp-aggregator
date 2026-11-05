@@ -1,0 +1,42 @@
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -504,6 +504,8 @@
+ 	let failedAttempts = 0;
+ 	/** When the current generation finished connect + initial sync; undefined while down. */
+ 	let connectedAt;
++	/** Optional poll: re-list tools periodically so a server that grows its tool face (e.g. the aggregator's load/promote) is picked up without a push channel. Gated by DSH_MCP_TOOLS_POLL_MS. */
++	let pollTimer;
+ 	/** The real error from the first connection attempt, for startup-await diagnostics. */
+ 	let firstAttemptError;
+ 	/** A generation may act only while it is the current one on a live plugin. */
+@@ -670,6 +672,19 @@
+ 		}
+ 		if (!isCurrent(generation)) return;
+ 		serverInstructions = instructions;
++		const pollMs = Number(process.env.DSH_MCP_TOOLS_POLL_MS ?? 0);
++		if (pollMs >= 3000 && pollTimer === void 0) {
++			pollTimer = setInterval(() => {
++				if (!isCurrent(generation)) {
++					clearInterval(pollTimer);
++					pollTimer = void 0;
++					return;
++				}
++				refreshTools();
++			}, pollMs);
++			pollTimer.unref?.();
++			ctx.logger.info(`${label}: tools poll every ${pollMs}ms (DSH_MCP_TOOLS_POLL_MS) — keeps a live tool face in sync`);
++		}
+ 		connectedAt = Date.now();
+ 		if (failedAttempts > 0) ctx.logger.info(`${label}: reconnected and re-synced tools (attempt ${failedAttempts}/${policy.maxAttempts})`);
+ 	}
+@@ -700,6 +715,10 @@
+ 		async dispose() {
+ 			disposed = true;
+ 			serverInstructions = "";
++			if (pollTimer !== void 0) {
++				clearInterval(pollTimer);
++				pollTimer = void 0;
++			}
+ 			if (reconnectTimer !== void 0) {
+ 				clearTimeout(reconnectTimer);
+ 				reconnectTimer = void 0;

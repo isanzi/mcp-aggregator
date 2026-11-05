@@ -100,7 +100,8 @@ load_toolset(sch_analysis) 之后   47 tools   ← [mcp-agg] catalog live-update
    `/mcp` 的 **GET 长连接**也支持 push（`accept: text/event-stream`）。
 2. 客户端轮询（兜底）：定期 `tools/list` 后重建工具注册 —— 对「不消费通知」的客户端（例如
    `@deepseek-ai/dsh-mcp-client` 0.2.2-rc.1：不建 GET 通道、收到通知也不重列）只能走这条。
-   参考实现见 [docs/dynamic-tool-face.md](docs/dynamic-tool-face.md)（约 12 行补丁，env 开关 `MCP_TOOLS_POLL_MS`）。
+   参考实现见 [docs/dynamic-tool-face.md](docs/dynamic-tool-face.md)；可直接应用的补丁与安装说明在
+   [patches/](patches/)，env 开关 `DSH_MCP_TOOLS_POLL_MS`。
 
 > 实测：工具面每变一次，那次请求的提示缓存整段失效（19.5 万 tokens 走全价）；不变时稳态命中 99.7–99.9%。
 
