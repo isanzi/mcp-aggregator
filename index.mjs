@@ -237,6 +237,7 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {
       server: { type: 'string', description: 'Server name, e.g. "lceda-tools". Returns its full one-line index.' },
       tools: { type: 'array', items: { type: 'string' }, description: 'server.tool refs whose FULL declaration you want.' },
+      preset: { type: 'string', description: 'Named tool set from servers.json hub.presets (e.g. "eda"). Expands into tools. Combine with promote:true to install the whole set in ONE call (one cache miss instead of one per tool).' },
       full: { type: 'boolean', description: 'With server: load full declarations for all its tools (subject to budget).' },
       promote: { type: 'boolean', description: 'ALSO install the tool into the live tool face (native call, schema-validated). Costs one full prompt-cache miss per change, then ~per-turn standing schema tokens; only worth it for tools you will call repeatedly. Default false = read-only.' },
       unload: { type: 'boolean', description: 'Remove from the tool face (with tools:[...] or all:true). One more cache miss, then standing cost returns to zero.' },
@@ -334,6 +335,15 @@ async function hubText(a, sid) {
   const mounted = [...conns.values()]
   const wantServer = a.server ? String(a.server).trim().toLowerCase() : null
   const wantTools = Array.isArray(a.tools) ? a.tools.map((x) => String(x)) : []
+  // presets：servers.json 的 hub.presets 里定义的"常用工具集"，一条 load 装齐 = 一次工具面变化（只付一次 cache miss）
+  const PRESETS = (HUB.presets && typeof HUB.presets === 'object') ? HUB.presets : {}
+  const wantPresets = a.preset === undefined ? [] : (Array.isArray(a.preset) ? a.preset.map(String) : [String(a.preset)])
+  const unknownPresets = []
+  for (const p of wantPresets) {
+    const list = PRESETS[p]
+    if (Array.isArray(list)) wantTools.push(...list.map(String))
+    else unknownPresets.push(p)
+  }
   const full = a.full === true
   if (a.unload === true) {
     const removed = []
@@ -343,12 +353,13 @@ async function hubText(a, sid) {
     return 'nothing to unload (currently loaded: ' + ([...bag.keys()].join(', ') || 'none') + ')'
   }
 
-  if (!wantServer && !wantTools.length) {
+  if (!wantServer && !wantTools.length && !wantPresets.length) {
     const total = mounted.reduce((n, c) => n + (c.catalog ? c.catalog.size : 0), 0)
     return 'hub: ' + total + ' tools are folded into catalog/describe/call/batch. Call me before invoking unfamiliar tools.\n'
       + '  load({server:"<name>"})              -> one-line index of that server\n'
       + '  load({tools:["<server>.<tool>",...]}) -> index + FULL description & schema (you pay only for these)\n'
       + '  load({server:"<name>", full:true})   -> whole server in full (' + HUB_FULL_BUDGET + ' B budget; batch if truncated)\n'
+      + '  load({preset:"<name>", promote:true}) -> install a pre-defined tool set in ONE call (one cache miss); presets: ' + ((HUB.presets && Object.keys(HUB.presets).join(', ')) || 'none configured') + '\n'
       + 'Mounted: ' + mounted.map((c) => c.name + ':' + (c.error ? 'UNAVAILABLE' : (c.catalog ? c.catalog.size : 0))).join('  ')
   }
 
@@ -396,6 +407,8 @@ async function hubText(a, sid) {
     if (promoted.length) { HUB_CHANGED.add(sidOf(sid)); out.push('\n[promoted] ' + promoted.length + ' tool(s) joined the tool face: ' + promoted.join(', ')) }
     out.push('\n[full declaration] ' + decls.length + ' tool(s), ' + used + ' B\n\n' + decls.join('\n\n---\n\n'))
   }
+  if (wantPresets.length) out.push('\n[preset] ' + wantPresets.filter((p) => PRESETS[p]).length + ' applied (' + wantPresets.filter((p) => PRESETS[p]).join(', ') + '), tools expanded: ' + wantTools.length
+    + (unknownPresets.length ? ' | unknown preset(s): ' + unknownPresets.join(', ') + ' (available: ' + (Object.keys(PRESETS).join(', ') || 'none') + ')' : ''))
   if (missing.length) out.push('\nnot found: ' + missing.join(', '))
   if (skipped.length) out.push('\nover budget, not loaded (call again in batches): ' + skipped.join(', '))
   return out.length ? out.join('\n') : '(nothing to load)'

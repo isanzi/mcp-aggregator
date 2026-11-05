@@ -82,9 +82,12 @@ load_toolset(sch_analysis) 之后   47 tools   ← [mcp-agg] catalog live-update
 | 看索引（哪个工具干什么） | `load({server:"eda"})` | 0 | 不变 |
 | 读完整声明（description + JSON schema） | `load({tools:["eda.draw_wire"]})` | 0 | 不变（只是往对话里追加文本） |
 | 装成原生工具（schema 校验、按名字直调） | `load({tools:[…], promote:true})` | 每轮 schema tokens | **整段 cache miss 一次** |
+| 装**预设工具集**（一次装齐，最省） | `load({preset:"eda", promote:true})` | 同上 | 多个工具**只付一次** miss |
 | 卸载 | `load({unload:true, all:true})` | 归零 | 再一次 miss |
 
 - 预算：索引 6000 B / 全量声明 12288 B（`hub` 段可调），超了会列 over-budget 清单让你分批。
+- `hub.presets` 定义常用工具集，例如 `"presets": {"eda": ["eda.draw_wire","eda.audit"]}`；
+  `load({preset:"eda", promote:true})` 一条调用装齐（**一次工具面变化**），未知 preset 会回可用清单。
 - **一次装齐**：`load({tools:[a,b,c], promote:true})` 只触发一次工具面变化；分三次装 = 三次整段 miss。
 - 已装集合**按 `mcp-session-id` 分桶**（上限 16 个会话，LRU），`initialize` 只清自己那份 ——
   多个客户端（如 DSH + Codex）共用一个聚合器时互不干扰。
@@ -130,7 +133,8 @@ systemctl --user daemon-reload && systemctl --user enable --now mcp-aggregator
   "descWidth": 84,
   "callTimeoutMs": 240000,
   "catalogWaitMs": 20000,
-  "hub": { "name": "load", "lineWidth": 96, "indexBudgetBytes": 6000, "fullBudgetBytes": 12288 },
+  "hub": { "name": "load", "lineWidth": 96, "indexBudgetBytes": 6000, "fullBudgetBytes": 12288,
+           "presets": { "eda": ["eda.draw_wire", "eda.audit"] } },
   "enforceSession": false,
   "servers": [
     { "name": "eda", "command": "node", "args": ["/opt/eda-mcp/dist/index.js"], "cwd": "/opt/eda-mcp" },

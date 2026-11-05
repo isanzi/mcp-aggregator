@@ -5,7 +5,13 @@
   "catalogWaitMs": 20000,
   "preResolveWaitMs": 3000,
   "maxBatchCalls": 64,
-  "hub": { "name": "load", "lineWidth": 96, "indexBudgetBytes": 6000, "fullBudgetBytes": 12288 },
+  "hub": {
+    "name": "load",
+    "lineWidth": 96,
+    "indexBudgetBytes": 6000,
+    "fullBudgetBytes": 12288,
+    "presets": { "eda": ["eda.draw_wire", "eda.audit"] }
+  },
   "enforceSession": false,
   "servers": [
     {
