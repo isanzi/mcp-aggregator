@@ -1,0 +1,1055 @@
+{
+ "_note": "章节化说明书：每工具一组章节，call 时按 _intent / 参数枚举命中 tags 只回相关章；describe({tool:'server.tool#章节id'}) 取单章。尚未覆盖的工具走 overview 兜底（无章节时只回必带段+判据块）。",
+ "manuals": {
+  "lceda-tools.lceda_batch": {
+   "overview": {
+    "title": "总览与并发",
+    "tags": [
+     "batch",
+     "批量",
+     "overview",
+     "总览与并发"
+    ],
+    "body": "九类 op 混装（每项用 **op 字段**判别：`{op:\"create\"|\"wire\"|\"netlabel\"|…}`，不是 type），单次 ≤100 op。并行波：create/netflag/text/graphic/props（concurrency 默认 40）；wire 与 netlabel 必须串行（EDA 拒绝并发创建，实测并发 10 根只成 1 根）。EDA 侧软超时 budgetMs 默认 16 s，超预算收尾并返 continues + remainingOps，必须把剩余 op 重送。四类写操作幂等：同型号同坐标已存在则 skipped，超时重发不会重复建件。"
+   },
+   "op:create": {
+    "title": "放件 create",
+    "tags": [
+     "create",
+     "放件",
+     "lcsc",
+     "deviceuuid",
+     "op:create",
+     "放件 create"
+    ],
+    "body": "`{op:\"create\", lcsc?|deviceUuid+libraryUuid, x, y, rotation?, mirror?, designator?, subPartName?, addIntoBom?, addIntoPcb?}`。rotation 90↔270 自动修正；批内记忆化（同器件对象只解析一次）。要算引脚落点先 lceda_pinmap，放完要坐标再 lceda_pins。"
+   },
+   "op:wire": {
+    "title": "导线 wire（吸合守卫）",
+    "tags": [
+     "wire",
+     "导线",
+     "points",
+     "bend",
+     "allowattach",
+     "op:wire",
+     "导线 wire（吸合守卫）"
+    ],
+    "body": "`{op:\"wire\", net, points:[x1,y1,x2,y2…]|[{x,y}…], bend?, allowAttach?}`。只接受正交段，自动插拐点。**吸合/短接守卫**：立创没有 junction，连接=几何语义——新线端点落在别网导线/电源符号锚点上会被静默并成折线、网名被既有那段夺走。写入前双向几何预检：端点落别网线内/与别网端点重合/压别网电源符号/共线重叠/反向 → strict（默认）拒建该 op 并在 hazards 给 kind+foreignNet+坐标；同网 T 接放行；确属故意跨网在该 op 写 allowAttach:true；guard:\"warn\" 只报不拦、\"off\" 关闭。"
+   },
+   "op:netlabel": {
+    "title": "网名 netlabel",
+    "tags": [
+     "netlabel",
+     "网名",
+     "labelas",
+     "port",
+     "op:netlabel",
+     "网名 netlabel"
+    ],
+    "body": "`{op:\"netlabel\", net, x, y, labelAs?:\"wire\"(默认)|\"port\"|\"label\", dir?:0|90|180|270, len?:20}`。默认 labelAs:\"wire\" 写成带网名的短导线（立创把网名渲染在线上，可删可重画）；\"port\" 用网络端口器件；\"label\" 走官方属性图元但**建了删不掉、失败不重试**。dir 可直接取 lceda_pins 的 rot。与 wire 一样走串行波。"
+   },
+   "op:graphic": {
+    "title": "图形/文本/电源标号",
+    "tags": [
+     "graphic",
+     "rect",
+     "circle",
+     "poly",
+     "bus",
+     "text",
+     "netflag",
+     "op:graphic",
+     "图形/文本/电源标号"
+    ],
+    "body": "`{op:\"graphic\"}`：rect 传**对角点**（内部换算 topLeft+宽高）/ circle 传圆心+半径 / poly 传点数组 / bus 传 busName（由 net 字段给）+线段。`{op:\"text\"}` 走 lceda_text 的墓碑逻辑；`{op:\"netflag\", kind, net, x, y, rotation?, mirror?}` 放电源/地标号。这四类进并行波。"
+   },
+   "op:verify": {
+    "title": "验收与回滚开关",
+    "tags": [
+     "dryrun",
+     "verify",
+     "rollbackonfailure",
+     "expectparts",
+     "netdiff",
+     "guard",
+     "summary",
+     "op:verify",
+     "验收与回滚开关"
+    ],
+    "body": "dryRun 只算不写；verify 逐条回读校验；rollbackOnFailure 失败即回滚；expectParts 断言器件数；netDiff 用 Protel2 网表比批前/批后 pin→net 划分——两个原本不同的网一旦合并即整批 ok=false，返 mergeGuard.merges[{afterNet,fromNets}]；guardMode/guardStats{wireOps,blocked,warned} 反映守卫。注意 mergeGuard 只看有引脚的网，纯导线测试网不参与。"
+   },
+   "pitfalls": {
+    "title": "坑（必读）",
+    "tags": [
+     "pitfalls",
+     "坑（必读）"
+    ],
+    "body": "① EDA 的 getAll/get 有一次调用级读滞后：刚删完线就发同几何批次可能被判 already-present（ok:true + skipped=N）⇒ 大批量前先跑 lceda_audit 并核对 wiresAfter 增量。② 同名线按名字并网属原理图语义，守卫不拦，只能靠 mergeGuard 抓。③ 批量改之前先 lceda_netcheck snapshot 存基线，事后 diff 验收。④ 超时返 continues 不是失败，必须重送剩余 op，别整批重来。 ⑤ 删/移电源标号会让经过其锚点的折线被拉直或合并（见「删/移标号与折线」章）：按 id 删一根短线可能实际删掉整条轨，删前先 getAll 看 line 长度。 ⑥ deleteWires 按 net/near/sameAs 删是一整根线为单位（含合并成长折线的整条轨）：先用 default impact 看 segments，或用 expectCount / maxWireSegments 上闸。"
+   },
+   "op:delete": {
+    "title": "删/移标号与折线",
+    "tags": [
+     "delete",
+     "netflag",
+     "电源标号",
+     "折线",
+     "拉直",
+     "合并",
+     "cascade",
+     "flagImpact",
+     "op:delete",
+     "删标号与折线"
+    ],
+    "body": "`{op:\"delete\", id|ids, flagImpact?=true, cascade?}`：器件/导线/电源标号都认。删标号自动回 flagImpact:[{flagId,net,at,wires:[{id,net,mode,segments,otherEnd,line}]}]。EDA 常在锚点处把线拆开，所以 mode 多为 endpoint（该端可能悬空，看 otherEnd 有没有接别的东西）；segments>1 说明是折线，删标号后可能被拉直、甚至与同几何线合并（网名被既有那段夺走）。cascade:true 只删 mode=\"endpoint\" 的短线（通常正是喂标号那根）。移标号=删旧建新：返回新 id（oldId=旧 id）+ 同形 flagImpact，旧位置短线不会跟走。判据：删/移标号后回读 wiresAfter.byNet，别信 ok:true。"
+   },
+   "op:deleteWires": {
+    "title": "删线的影响面与硬闸",
+    "tags": [
+     "deleteWires",
+     "删线",
+     "impact",
+     "expectCount",
+     "maxWireSegments",
+     "折线",
+     "整条轨",
+     "op:deleteWires",
+     "删线的影响面"
+    ],
+    "body": "`{op:\"deleteWires\", ids|net|nets|near|sameAs|all, expectCount?, maxWireSegments?}`：删线以整根线为单位，EDA 会把相接线段合并成长折线 ⇒ 按 net/near/sameAs 删常常一次删掉一整条轨。默认回报 impact:{matched,byNet,segmentsTotal,maxSegments,wires:[{id,net,segments,line}]}，先看 segments/maxSegments 再决定。两道硬闸：expectCount=N（命中数≠N 直接拒删，ok:false，文件不动）、maxWireSegments=N（任一根段数超限即拒删并回 blockedWires）。dryRun:true 只报 impact 不删。判据：按 net 删完必回读 wiresAfter.byNet；要保留同网其余线就改用 ids 精确删。 实测：提交 3 段的折线回读成 5 段（EDA 会拆/并线）⇒ 闸值按 impact 实测 maxSegments 设，别按提交的拐点数估。"
+   }
+  },
+  "jlceda.pcb_get_tracks": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "总览"
+    ],
+    "body": "查走线段。不传过滤=全板线段，量大先加过滤。坐标单位 mil。"
+   },
+   "byNet": {
+    "title": "按网络查",
+    "tags": [
+     "net",
+     "网络",
+     "走线",
+     "按网络查"
+    ],
+    "body": "传 net:\"VCC\" 只看该网络的全部线段（起点/终点/层/线宽）。要判断哪些网络还没布 → pcb_net_connectivity_check。"
+   },
+   "byLayer": {
+    "title": "按层查",
+    "tags": [
+     "layer",
+     "层",
+     "顶层",
+     "底层",
+     "按层查"
+    ],
+    "body": "传 layer:数字（1=顶层 2=底层，具体见 get_state 的层表）只看该层线段；跨层连续性要配合 pcb_create_via 的结果一起看。"
+   }
+  },
+  "dshlink.files": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "总览"
+    ],
+    "body": "手机「下载」目录。作用域存储：只能看到本 app 写进去的条目，别的 app 放的文件看不到。"
+   },
+   "actionList": {
+    "title": "列目录 list",
+    "tags": [
+     "list",
+     "列",
+     "目录",
+     "看",
+     "列目录 list"
+    ],
+    "body": "action:'list' 返回条目 {id,name,size,addedAt}，按时间倒序。用来确认 dshlink.push 是否真的落盘。"
+   },
+   "actionPull": {
+    "title": "回读 pull",
+    "tags": [
+     "pull",
+     "回读",
+     "取回",
+     "拉回",
+     "回读 pull"
+    ],
+    "body": "action:'pull' + 文件标识把手机上的文件拉回本地。用于核对推上去的内容是否一致（比只看 size 可靠）。"
+   }
+  },
+  "dshlink.status": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "总览"
+    ],
+    "body": "一次看三件事：守护进程在不在、手机连没连、设备信息。任何手机操作前先跑它。"
+   },
+   "daemonCheck": {
+    "title": "守护进程排障",
+    "tags": [
+     "守护",
+     "daemon",
+     "进程",
+     "服务",
+     "守护进程排障"
+    ],
+    "body": "报『守护进程不在跑』⇒ systemctl --user status droid-linkd；端口被占看 ss -ltnp | grep 8888。守护进程重启后手机端要重连。"
+   },
+   "phonePair": {
+    "title": "手机配对/重连",
+    "tags": [
+     "手机",
+     "连接",
+     "配对",
+     "令牌",
+     "token",
+     "手机配对/重连"
+    ],
+    "body": "手机未连接时：确认 app 填的是电脑 IP:8888、令牌与 `droid link token` 一致、手机与电脑同一网段。别反复 push——先修通道。 手机未连接时 push 必失败且会把下载队列搞乱，先修通道；文件回读用 dshlink.files。"
+   }
+  },
+  "lceda-tools.lceda_execute": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "exec",
+     "执行",
+     "js",
+     "code",
+     "总览",
+     "probe",
+     "签名"
+    ],
+    "body": "在立创 EDA 里执行 JS 函数体（可用 await/循环，顶层 return 即是结果）。一条代码跑多步读写，省往返。单次 28 s。 不确定签名先 lceda_probe({expr:'eda.dmt_Project.createProject'})，别盲试参数顺序。"
+   },
+   "syntax": {
+    "title": "写法",
+    "tags": [
+     "写法",
+     "async",
+     "null",
+     "异常"
+    ],
+    "body": "写成裸函数体：const p = await eda.dmt_Project.getCurrentProjectInfo(); return p; 不要写成 (async()=>{…})() —— 会被 exec 拦下，静默返回 null 且吞异常。"
+   },
+   "timeout": {
+    "title": "超时与重发",
+    "tags": [
+     "超时",
+     "28",
+     "重发",
+     "超时与重发"
+    ],
+    "body": "单次 28 s：超时=调用方拿不到返回，但 EDA 侧代码仍在跑完。超时后先回读现状（lceda_status / lceda_audit）再决定是否重发。"
+   }
+  },
+  "lceda-tools.lceda_symbol_create": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "symbol",
+     "符号",
+     "建库",
+     "总览"
+    ],
+    "body": "建符号并落库：create→openInEditor→断言活动文档为空符号（非空中止，绝不画进别人的符号）→画引脚→画框→逐脚 Pin Type→save→回读计数。"
+   },
+   "pins": {
+    "title": "引脚与电气类型",
+    "tags": [
+     "pin",
+     "pintype",
+     "引脚",
+     "类型",
+     "引脚与电气类型",
+     "电气类型",
+     "pin type"
+    ],
+    "body": "坐标 0.01 inch，pin 间距建议 10。必须逐脚设 Pin Type（input/output/power/passive…），留默认会让 ERC 误判。"
+   },
+   "verify": {
+    "title": "落库验收",
+    "tags": [
+     "verify",
+     "回读",
+     "验收",
+     "落库验收"
+    ],
+    "body": "以回读 PIN/RECT/ATTR 计数为准；再用 lceda_symbol_inspect 逐脚核对 Number/Name/Type。"
+   }
+  },
+  "lceda-tools.lceda_footprint_create": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "footprint",
+     "封装",
+     "建库",
+     "总览"
+    ],
+    "body": "建封装并落库：create（名字不可改）→换焊盘表→清骨架装饰→画本体丝印→回读。坐标 mil（1mm=39.37）。默认写个人库（4.1.78 上工程库写源必失败）。"
+   },
+   "pads": {
+    "title": "焊盘表",
+    "tags": [
+     "pad",
+     "焊盘",
+     "mil",
+     "焊盘表"
+    ],
+    "body": "焊盘表用 mil；焊盘号与手册一致（EP 单独给号）。EP 钢网分块用 lceda_footprint_paste 关 1:1 开窗。"
+   },
+   "silk": {
+    "title": "丝印与骨架装饰",
+    "tags": [
+     "silk",
+     "丝印",
+     "装饰",
+     "skeleton",
+     "丝印与骨架装饰",
+     "丝印层",
+     "垃圾",
+     "清理"
+    ],
+    "body": "create 的骨架自带装饰（文档层/装配层/远离本体的丝印），必须先清掉（看 skeletonDecorRemoved 计数）再画本体丝印。"
+   },
+   "verify": {
+    "title": "落库验收",
+    "tags": [
+     "verify",
+     "回读",
+     "inspect",
+     "落库验收"
+    ],
+    "body": "验收：lceda_footprint_inspect 看 PAD/POLY 计数与实时焊盘数；必要时 lceda_footprint_export_source 读源比对。"
+   }
+  },
+  "lceda-tools.lceda_footprint_from_qfn_spec": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "qfn",
+     "vqfn",
+     "参数化",
+     "总览"
+    ],
+    "body": "按 pinCount/bodyMm/pitchMm 生成 QFN/VQFN 焊盘表并建封装（入参 mm、落库 mil）。"
+   },
+   "ring": {
+    "title": "环半径坑",
+    "tags": [
+     "ring",
+     "重叠",
+     "间距",
+     "环半径坑"
+    ],
+    "body": "ringMm 太小时相邻两边最外侧的脚会互相压住（48 脚 7mm/0.5 pitch 实测 0.07×0.07 mm ×4 对）。工具会自动撑到不重叠最小值，看返回 ringAdjusted/ringUsedMil。"
+   }
+  },
+  "lceda-tools.lceda_screenshot": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "screenshot",
+     "截图",
+     "总览"
+    ],
+    "body": "按 API 截 EDA 画布；返回 image 块（可多个）+ 每页元数据（title/doctype/bytes/likelyBlank）。"
+   },
+   "multipage": {
+    "title": "多页抓取",
+    "tags": [
+     "all",
+     "多页",
+     "target",
+     "budget",
+     "多页抓取"
+    ],
+    "body": "target:'all' + doctype 过滤（1 原理图 2 符号 3 PCB 4 封装）。逐页 activate→waitMs→zoomToAllPrimitives→截→恢复原活动页；超 budgetMs 的页标记 skipped。"
+   },
+   "channel": {
+    "title": "通路差异",
+    "tags": [
+     "通路",
+     "pcb",
+     "封装",
+     "原理图",
+     "通路差异"
+    ],
+    "body": "PCB(3)/封装(4) 走画布；原理图(1) 走 sch_Manager 通路。只要当前 PCB 一张图用 jlceda.pcb_screenshot 更轻。"
+   }
+  },
+  "lceda-tools.lceda_zoom": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "zoom",
+     "放大",
+     "细节",
+     "总览"
+    ],
+    "body": "按 designator/designators 或显式 bbox 取引脚包围盒，加 pad 后裁剪整页 PNG 并放大 scale 倍返回。"
+   },
+   "calib": {
+    "title": "校准",
+    "tags": [
+     "校准",
+     "off",
+     "pad",
+     "scale",
+     "sheet",
+     "间距",
+     "丝印",
+     "文字",
+     "看不清",
+     "细节"
+    ],
+    "body": "坐标→像素：off=11px + 画布 1169×826 线性映射；对不上用 sheetWidth/sheetHeight/marginPx 校准。读参数/间距一律用放大图。"
+   }
+  },
+  "lceda-tools.lceda_orient": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "orient",
+     "朝向",
+     "总表",
+     "总览"
+    ],
+    "body": "只读朝向总表：器件 rot/mirror、每脚坐标+名+电气类型+朝向(dir)、端口/电源标志、导线走向、网名对齐；可按 designators/ids/nets 过滤。"
+   },
+   "howto": {
+    "title": "怎么用",
+    "tags": [
+     "dir",
+     "rot",
+     "mirror",
+     "用法",
+     "怎么用"
+    ],
+    "body": "连线和写网名前看这张表；dir 可直接喂 lceda_batch 的 netlabel{dir}。别用「左 180 右 0」人肉推——器件一转就错。"
+   }
+  },
+  "lceda-tools.lceda_layout": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "layout",
+     "视图",
+     "bbox",
+     "总览"
+    ],
+    "body": "只读画布视图：每器件 bbox（按引脚外沿）、所属模块框、框 bbox、重叠/出框告警、可选 ASCII 网格（30 单位/格，39×28）。"
+   },
+   "loop": {
+    "title": "看图闭环",
+    "tags": [
+     "闭环",
+     "move",
+     "rotate",
+     "看图闭环"
+    ],
+    "body": "配合 lceda_batch 的 move/rotate：看图→调→再看。要看清字/间距改用 lceda_zoom。"
+   }
+  },
+  "lceda-tools.lceda_audit": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "audit",
+     "体检",
+     "缺陷",
+     "总览"
+    ],
+    "body": "只读整页体检：重复器件/位号/导线、引脚重合、孤立电源符号、悬空端点、非网格点、器件相交、文本互压、网名与网表不符 + 网表规模 + 未连引脚。"
+   },
+   "judge": {
+    "title": "判据",
+    "tags": [
+     "ok",
+     "判据",
+     "expect",
+     "交付",
+     "验收",
+     "缺陷",
+     "回归"
+    ],
+    "body": "ok=true 当且仅当缺陷计数为 0；未连引脚只报不判错（PG/FB2 天然悬空）。可传 expect 断言网表规模。交付前必跑，可与只读工具合批。"
+   }
+  },
+  "lceda-tools.lceda_netcheck": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "netcheck",
+     "网表",
+     "基线",
+     "总览"
+    ],
+    "body": "网表基线：snapshot 存 Protel2 基线；check/diff 比新增/消失/改动的网与单脚网；list 列基线；prune 只留最近 keep 个（默认 20）。"
+   },
+   "judge": {
+    "title": "判据",
+    "tags": [
+     "ok",
+     "expect",
+     "failondiff",
+     "判据",
+     "验收",
+     "单脚",
+     "差异",
+     "回归"
+    ],
+    "body": "ok=true 当且仅当 expect 通过（且 failOnDiff:true 时无差异）。先 snapshot 再改，改完 check；单脚网数是第一指标。"
+   }
+  },
+  "lceda-tools.lceda_document_source": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "source",
+     "文档源",
+     "行",
+     "总览"
+    ],
+    "body": "原理图页文档源事务接口：count/read/backup/restore/drop。源是 JSON-lines 一行一个图元；189 KB 页面读一次约 3 ms。"
+   },
+   "drop": {
+    "title": "drop 删属性图元",
+    "tags": [
+     "drop",
+     "删除",
+     "netlabel",
+     "属性图元",
+     "drop 删属性图元",
+     "删不掉",
+     "网络标签"
+    ],
+    "body": "官方 delete 对属性图元（网络标签）是空实现 return false、对文本只改内存（save 后复活）⇒ 删不掉的图元只能删源行：{action:'drop', dropIds:[…]}。"
+   },
+   "backup": {
+    "title": "备份与还原",
+    "tags": [
+     "backup",
+     "restore",
+     "backups",
+     "备份与还原"
+    ],
+    "body": "drop 前自动备份旧源到服务器 backups/*.src 并回读计数校验；手动回滚用 restore + 备份文件名。"
+   }
+  },
+  "lceda-tools.lceda_text": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "text",
+     "文本",
+     "crud",
+     "总览"
+    ],
+    "body": "文本 CRUD。match 是数组：[{text:\"精确\"}|{contains:\"片段\"}|{x,y}]，传字符串会被丢。create 只吃 text/x/y，传 fontSize 判未知参数（lceda_batch 的 text op 才认）。"
+   },
+   "tombstone": {
+    "title": "删除配方",
+    "tags": [
+     "delete",
+     "墓碑",
+     "复活",
+     "删除配方",
+     "删不掉",
+     "删了又活"
+    ],
+    "body": "2026-11-06 实测：内建墓碑配方不足——delete 报 ok 后 save(verify:true) 仍 srcMismatch(TEXT src=6 page=7)、list 同 id 复活。可靠顺序：①lceda_text delete（内存）②lceda_document_source{action:\"drop\",dropIds:[id]}（源级删行）③save(verify:false) ④重开页回读。别跟 save(verify:true)。"
+   },
+   "reload": {
+    "title": "reload 坑",
+    "tags": [
+     "reload",
+     "复活",
+     "翻倍",
+     "reload 坑"
+    ],
+    "body": "默认 reload:false。实测 reload:true 会把已删文本复活并翻倍（13→27→41 条），代价约 3.7 s。"
+   }
+  },
+  "lceda-tools.lceda_board_outline": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "board",
+     "板框",
+     "outline",
+     "layer11",
+     "总览"
+    ],
+    "body": "PCB 板框建/改/验（layer 11）：read 回读、set_rect 矩形、set_polygon 任意闭合、verify 导 Gerber 验几何。把「板框只能 GUI 画」变成可脚本化。"
+   },
+   "trap": {
+    "title": "已知坑：参数顺序",
+    "tags": [
+     "坑",
+     "polyline",
+     "net",
+     "layer",
+     "已知坑：参数顺序",
+     "read",
+     "set_rect",
+     "set_polygon",
+     "多边形",
+     "报错",
+     "创建失败"
+    ],
+    "body": "pcb_PrimitivePolyline.create 第一个参数是 net（字符串）不是 layer，传错会一直报「无法创建多边形图元」。set_rect 遇已有板框走 modify 保留 id，别先删再建。"
+   }
+  },
+  "lceda-tools.lceda_gerber_export": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "gerber",
+     "制版",
+     "导出",
+     "总览"
+    ],
+    "body": "制版文件导出：createPcb()（必须空参）→openDocument→（可选放件）→getGerberFile 导指定层→返回 zip base64/落盘，最后默认删掉临时 PCB 并回报 pcbsLeft 自证。"
+   },
+   "layers": {
+    "title": "层选择",
+    "tags": [
+     "layers",
+     "层",
+     "铜",
+     "丝印",
+     "钢网",
+     "层选择"
+    ],
+    "body": "layers 默认 [1,3,7]（1=T铜 3=T丝印 7=T钢网）。正式出板走 KiCAD/kicad-manufacture；此工具用于快速验证几何。"
+   }
+  },
+  "pdf.read_pdf": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "pdf",
+     "读",
+     "页"
+    ],
+    "body": "读本地 PDF 页，返回文字 + 页面图像。输出带标记：@@PB_META（预算/剩余页 rem/next）、@@PDF_TEXT p=N、@@PDF_IMAGE p=N。"
+   },
+   "modes": {
+    "title": "三种模式",
+    "tags": [
+     "mode",
+     "text_only",
+     "image_only",
+     "auto"
+    ],
+    "body": "auto=文字+图像（默认）；text_only=只文字（**丢词间空格**，实测 TheLM5125A-Q1isastackable）；image_only=只要页面像素。"
+   },
+   "layout": {
+    "title": "版式/参数名回落",
+    "tags": [
+     "pdftotext",
+     "layout",
+     "双栏",
+     "参数"
+    ],
+    "body": "精确版式、参数名、双栏表格一律回落 `pdftotext -layout`；曲线数字要裁剪放大再看（整页低清会读错）。",
+    "intentOnly": true
+   },
+   "images": {
+    "title": "图真的到模型的两道门",
+    "tags": [
+     "图",
+     "image",
+     "门",
+     "路由"
+    ],
+    "body": "① 聚合器透传（已验证 sha256 一致）；② 路由声明 image —— 走未声明 image 的路由必须 mode:'text_only'，否则图变 'image unavailable'。"
+   }
+  },
+  "github.pull_request_review_write": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "评审",
+     "review",
+     "pr"
+    ],
+    "body": "PR 评审三步：create 建 pending review（含 comments）→ submit 提交（EVENT: APPROVE/REQUEST_CHANGES/COMMENT）→ delete 撤销。"
+   },
+   "lifecycle": {
+    "title": "pending 生命周期",
+    "tags": [
+     "pending",
+     "submit",
+     "delete"
+    ],
+    "body": "**pending 不 submit 不会出现在 PR 上**；一条 PR 同时只能有一个 pending review。要追加行级意见用 add_comment_to_pending_review。"
+   },
+   "guard": {
+    "title": "不可逆与权限",
+    "tags": [
+     "approve",
+     "request_changes",
+     "权限"
+    ],
+    "body": "APPROVE / REQUEST_CHANGES 一提交就对外可见且影响合并门禁；token 需 repo 权限，只读 token 会 403。"
+   }
+  },
+  "github.issue_write": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "issue",
+     "新建",
+     "更新"
+    ],
+    "body": "新建或更新 issue：method=create 需 title；method=update 需 issue_number。"
+   },
+   "update": {
+    "title": "更新别覆盖",
+    "tags": [
+     "update",
+     "覆盖",
+     "先读"
+    ],
+    "body": "更新前先 issue_read 拿现有字段；只传要改的字段，漏传可能被当成空值覆盖。"
+   },
+   "labels": {
+    "title": "标签/类型/里程碑",
+    "tags": [
+     "label",
+     "type",
+     "milestone",
+     "ui_get"
+    ],
+    "body": "可选值（labels/assignees/milestones/issue types）用 ui_get 取，别硬编码名字。",
+    "intentOnly": true
+   }
+  },
+  "github.pull_request_read": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "pr",
+     "读",
+     "method"
+    ],
+    "body": "读 PR：method 决定读详情 / diff / 评论 / 评审 / 提交列表等；owner+repo+pullNumber 必填。"
+   },
+   "which": {
+    "title": "选哪个 method",
+    "tags": [
+     "diff",
+     "comments",
+     "reviews",
+     "files"
+    ],
+    "body": "看改动 → diff/files；看讨论 → comments；看门禁 → reviews + checks。要写评审用 pull_request_review_write。"
+   }
+  },
+  "playwright.browser_tabs": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "tabs",
+     "标签页"
+    ],
+    "body": "标签页管理：action=list 列出 / create 新建 / close 关闭 / select 切换。"
+   },
+   "actions": {
+    "title": "action 取值",
+    "tags": [
+     "list",
+     "create",
+     "close",
+     "select"
+    ],
+    "body": "list 只列；create 建新页（可带 url）；close 关指定页（**最后一条关不掉**）；select 切到目标页后，后续 click/type 才作用在它上面。"
+   },
+   "guard": {
+    "title": "切换后的坑",
+    "tags": [
+     "切换",
+     "上下文",
+     "丢引用"
+    ],
+    "body": "切页后**之前的元素引用作废**，必须重新 browser_snapshot 拿新引用。",
+    "intentOnly": true
+   }
+  },
+  "playwright.browser_take_screenshot": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "screenshot",
+     "截图",
+     "scale"
+    ],
+    "body": "截当前页面；scale 可调清晰度。返回图像块，不能据图点击。"
+   },
+   "when": {
+    "title": "何时用它、何时不用",
+    "tags": [
+     "何时",
+     "快照",
+     "snapshot"
+    ],
+    "body": "要**视觉证据**（布局/样式/渲染错位）才截图；要**操作元素**一律先 browser_snapshot（图里没有可点引用）。"
+   },
+   "guard": {
+    "title": "大图与预算",
+    "tags": [
+     "大图",
+     "预算",
+     "像素"
+    ],
+    "body": "整页大图很占上下文（宿主 spill 线 4,000 est tokens）；能只截元素就别整页。",
+    "intentOnly": true
+   }
+  },
+  "chrome-devtools.navigate_page": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "navigate",
+     "导航",
+     "pageId"
+    ],
+    "body": "导航：给 url 跳转，或 back/forward/reload；pageId 必填。"
+   },
+   "modes": {
+    "title": "四种动作",
+    "tags": [
+     "url",
+     "back",
+     "forward",
+     "reload"
+    ],
+    "body": "url 跳新地址；back/forward 走历史；reload 刷新——**刷新后 uid 全部作废**，要重 take_snapshot。"
+   },
+   "guard": {
+    "title": "导航后要重新取快照",
+    "tags": [
+     "刷新",
+     "uid",
+     "失效"
+    ],
+    "body": "任何导航类动作之后，之前的 uid 不可再用于 click/fill。",
+    "intentOnly": true
+   }
+  },
+  "jlceda.calc_impedance": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "impedance",
+     "阻抗"
+    ],
+    "body": "按 type 算阻抗，或给目标阻抗反算线宽；height（层厚/介质厚）必填。"
+   },
+   "microstrip": {
+    "title": "微带线",
+    "tags": [
+     "microstrip",
+     "表层"
+    ],
+    "body": "type=microstrip：表层走线与参考层。需要线宽、铜厚、介质厚、介电常数。"
+   },
+   "stripline": {
+    "title": "带状线",
+    "tags": [
+     "stripline",
+     "内层"
+    ],
+    "body": "type=stripline：内层走线夹在两参考层之间，阻抗计算用总介质厚。"
+   },
+   "diff": {
+    "title": "差分",
+    "tags": [
+     "diff",
+     "differential",
+     "差分"
+    ],
+    "body": "type=diff_microstrip / diff_stripline 额外需要间距；算完用 pcb_create_diff_pair 落库约束。"
+   }
+  },
+  "jlceda-native.library_classification_query": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "library",
+     "分类",
+     "树"
+    ],
+    "body": "读库的分类树（kind + libraryUuid），用于按分类定位器件/符号/封装。"
+   },
+   "kinds": {
+    "title": "kind 取值",
+    "tags": [
+     "kind",
+     "device",
+     "symbol",
+     "footprint"
+    ],
+    "body": "kind 决定查哪类库：器件/符号/封装/3D/复用模块。先 library_sources 确认 libraryUuid 属于哪个库（system/personal/project）。"
+   }
+  },
+  "konnect.set_footprint_graphics": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "footprint",
+     "graphic",
+     "封装图形"
+    ],
+    "body": "批量设置封装里的图形（线/弧/多边形/文本）属性。"
+   },
+   "kinds": {
+    "title": "type 取值",
+    "tags": [
+     "type",
+     "line",
+     "arc",
+     "poly",
+     "text"
+    ],
+    "body": "type 决定操作对象：line/arc/poly/text；坐标随封装编辑器网格。一次只改指定 type，别混传。",
+    "intentOnly": true
+   }
+  },
+  "konnect.set_footprint_models": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "footprint",
+     "3d",
+     "model",
+     "封装模型"
+    ],
+    "body": "设置封装级 3D 模型引用（路径/缩放/旋转）。"
+   },
+   "kinds": {
+    "title": "type 取值",
+    "tags": [
+     "type",
+     "step",
+     "wrl",
+     "3d"
+    ],
+    "body": "type 指定模型来源：STEP/WRL；改完要回读 footprint 的 3D 字段。"
+   }
+  },
+  "konnect.set_placed_footprint_models": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "placed",
+     "3d",
+     "model",
+     "实例"
+    ],
+    "body": "设置已放置器件的封装 3D 模型（只影响该实例）。"
+   },
+   "kinds": {
+    "title": "type 取值",
+    "tags": [
+     "type",
+     "instance",
+     "placed",
+     "3d"
+    ],
+    "body": "改动只作用于这一个实例，不影响库封装；要改库用 set_footprint_models。"
+   }
+  },
+  "kicad-gui.add_layer": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "layer",
+     "层",
+     "铜层"
+    ],
+    "body": "新增/设置 PCB 铜层（层数与会话层）。"
+   },
+   "kinds": {
+    "title": "type 取值",
+    "tags": [
+     "type",
+     "layer",
+     "层数"
+    ],
+    "body": "type/层参数决定增删哪层；层数变更受官方支持范围限制（2–32 偶数）。改层数前先确认内层无图元。"
+   }
+  },
+  "kicad-gui.set_board_origin": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "origin",
+     "原点",
+     "基准"
+    ],
+    "body": "设置板原点（坐标基准）。"
+   },
+   "kinds": {
+    "title": "type 取值",
+    "tags": [
+     "type",
+     "origin",
+     "absolute",
+     "relative"
+    ],
+    "body": "type 选定原点定义方式（绝对坐标/相对某图元）；改原点会让所有坐标读数平移。"
+   }
+  },
+  "kicad-gui.set_footprint_type": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "footprint",
+     "type",
+     "封装"
+    ],
+    "body": "设置封装类型（SMD/THT 等）。"
+   },
+   "kinds": {
+    "title": "type 取值",
+    "tags": [
+     "type",
+     "smd",
+     "tht"
+    ],
+    "body": "type 决定装配与 DRC 归类；改完重跑 DRC（THT/SMD 判定变了）。"
+   }
+  },
+  "kicad-gui.set_symbol_pin_type": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "symbol",
+     "pin",
+     "type",
+     "电气类型"
+    ],
+    "body": "设置符号引脚电气类型。"
+   },
+   "kinds": {
+    "title": "type 取值",
+    "tags": [
+     "type",
+     "input",
+     "output",
+     "passive",
+     "power"
+    ],
+    "body": "type 取值 input/output/bidirectional/tri_state/passive/free/power_*/open_*；错设会让 ERC 误判。"
+   }
+  }
+ }
+}

@@ -1,0 +1,3180 @@
+{
+ "optimizer": {
+  "at": "2026-11-06T03:12:37.620Z",
+  "note": "本轮改动：新增 manualDeadChapter 死章检查 + intentOnly 标记 + lint 读 summaryFile"
+ },
+ "tools": {
+  "lceda-tools.lceda_batch": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "2831:5054"
+  },
+  "lceda-tools.lceda_execute": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "352:650"
+  },
+  "lceda-tools.lceda_pins": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "347:472"
+  },
+  "lceda-tools.lceda_pinmap": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "413:981"
+  },
+  "lceda-tools.lceda_netcheck": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "443:1085"
+  },
+  "lceda-tools.lceda_audit": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "520:880"
+  },
+  "lceda-tools.lceda_status": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "221:239"
+  },
+  "lceda-tools.lceda_document_source": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "480:2226"
+  },
+  "lceda-tools.lceda_text": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "569:1365"
+  },
+  "lceda-tools.lceda_document_save": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "247:591"
+  },
+  "lceda-tools.lceda_screenshot": {
+   "at": "2026-11-06T16:52:57.141Z",
+   "sig": "674:1600"
+  },
+  "lceda-tools.lceda_zoom": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "346:1188"
+  },
+  "lceda-tools.lceda_symbol_create": {
+   "at": "2026-11-06T03:55:11.076Z",
+   "sig": "311:1981"
+  },
+  "lceda-tools.lceda_device_create": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "103:868"
+  },
+  "lceda-tools.lceda_project_open": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "201:242"
+  },
+  "jlceda.pcb_execute_code": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "200:434"
+  },
+  "jlceda.pcb_run_drc": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "35:98"
+  },
+  "jlceda.pcb_screenshot": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "32:98"
+  },
+  "jlceda.pcb_get_tracks": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "15:313"
+  },
+  "jlceda.pcb_net_connectivity_check": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "82:291"
+  },
+  "jlceda.pcb_get_state": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "56:98"
+  },
+  "jlceda.pcb_route_track": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "9:858"
+  },
+  "jlceda.pcb_create_via": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "12:630"
+  },
+  "jlceda.pcb_batch_move": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "24:741"
+  },
+  "jlceda.pcb_open_document": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "43:245"
+  },
+  "jlceda.sch_get_netlist": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "12:214"
+  },
+  "jlceda.pcb_component_clearance_check": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "69:241"
+  },
+  "jlceda.pcb_auto_route_nets": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "115:859"
+  },
+  "pdf.read_pdf": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "165:882"
+  },
+  "freecad.execute_code_headless": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "1146:283"
+  },
+  "freecad.execute_code_async": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "2554:185"
+  },
+  "dshlink.status": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "136:75"
+  },
+  "dshlink.push": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "100:307"
+  },
+  "dshlink.files": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "178:559"
+  },
+  "kicad.export_gerber": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "218:1249"
+  },
+  "kicad.render_pcb": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "307:1079"
+  },
+  "konnect.load_toolset": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "252:410"
+  },
+  "konnect.open_project": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "130:230"
+  },
+  "lceda-tools.lceda_orient": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "464:1534"
+  },
+  "lceda-tools.lceda_layout": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "412:470"
+  },
+  "lceda-tools.lceda_probe": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "111:256"
+  },
+  "lceda-tools.lceda_prefetch": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "398:712"
+  },
+  "lceda-tools.lceda_symbol_inspect": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "96:204"
+  },
+  "lceda-tools.lceda_footprint_create": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "381:3075"
+  },
+  "lceda-tools.lceda_footprint_from_qfn_spec": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "321:1609"
+  },
+  "lceda-tools.lceda_footprint_clone": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "255:512"
+  },
+  "lceda-tools.lceda_footprint_paste": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "221:675"
+  },
+  "lceda-tools.lceda_footprint_inspect": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "175:204"
+  },
+  "lceda-tools.lceda_footprint_export_source": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "231:204"
+  },
+  "lceda-tools.lceda_footprint_list": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "48:220"
+  },
+  "lceda-tools.lceda_footprint_delete": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "237:330"
+  },
+  "lceda-tools.lceda_model3d_import": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "197:294"
+  },
+  "lceda-tools.lceda_board_outline": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "728:1729"
+  },
+  "lceda-tools.lceda_gerber_export": {
+   "at": "2026-11-06T16:52:57.142Z",
+   "sig": "293:1334"
+  },
+  "lceda-tools.lceda_project_list": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "243:724"
+  },
+  "lceda-tools.lceda_project_create": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "479:811"
+  },
+  "lceda-tools.lceda_project_move": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "374:899"
+  },
+  "lceda-tools.lceda_project_delete": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "530:201"
+  },
+  "freeroute.freeroute_route": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "120:645"
+  },
+  "freeroute.freeroute_run": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "145:938"
+  },
+  "freeroute.freeroute_import": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "130:329"
+  },
+  "freeroute.pour_rebuild": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "130:432"
+  },
+  "freeroute.pour_read": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "125:93"
+  },
+  "github.add_comment_to_pending_review": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "161:1728"
+  },
+  "github.add_issue_comment": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "314:1184"
+  },
+  "github.add_reply_to_pull_request_comment": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "244:1135"
+  },
+  "github.create_branch": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "42:540"
+  },
+  "github.create_or_update_file": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "528:1358"
+  },
+  "github.create_pull_request": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "49:1095"
+  },
+  "github.create_repository": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "72:691"
+  },
+  "github.delete_file": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "38:670"
+  },
+  "github.fork_repository": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "66:420"
+  },
+  "github.get_commit": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "49:1228"
+  },
+  "github.get_file_contents": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "64:1369"
+  },
+  "github.get_label": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "39:444"
+  },
+  "github.get_latest_release": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "45:320"
+  },
+  "github.get_me": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "171:42"
+  },
+  "github.get_release_by_tag": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "61:424"
+  },
+  "github.get_tag": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "59:407"
+  },
+  "github.get_team_members": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "120:293"
+  },
+  "github.get_teams": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "110:1086"
+  },
+  "github.issue_read": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "62:1566"
+  },
+  "github.issue_write": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "64:5325"
+  },
+  "github.list_branches": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "36:605"
+  },
+  "github.list_commits": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "178:1865"
+  },
+  "github.list_issue_fields": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "253:531"
+  },
+  "github.list_issue_types": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "132:475"
+  },
+  "github.list_issues": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "137:2992"
+  },
+  "github.list_pull_requests": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "148:2204"
+  },
+  "github.list_releases": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "36:1155"
+  },
+  "github.list_repository_collaborators": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "219:1462"
+  },
+  "github.list_tags": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "36:605"
+  },
+  "github.merge_pull_request": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "44:932"
+  },
+  "github.pull_request_read": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "64:2802"
+  },
+  "github.pull_request_review_write": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "1113:1343"
+  },
+  "github.push_files": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "61:1099"
+  },
+  "github.request_copilot_review": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "150:432"
+  },
+  "github.run_secret_scanning": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "667:804"
+  },
+  "github.search_code": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "175:1653"
+  },
+  "github.search_commits": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "207:1458"
+  },
+  "github.search_issues": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "169:2457"
+  },
+  "github.search_pull_requests": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "98:2344"
+  },
+  "github.search_repositories": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "182:1295"
+  },
+  "github.search_users": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "134:1234"
+  },
+  "github.sub_issue_write": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "57:1707"
+  },
+  "github.ui_get": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "107:698"
+  },
+  "github.update_issue_comment": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "128:812"
+  },
+  "github.update_pull_request": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "55:1268"
+  },
+  "github.update_pull_request_branch": {
+   "at": "2026-11-06T03:08:15.058Z",
+   "sig": "81:559"
+  },
+  "jlceda.calc_impedance": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "100:1021"
+  },
+  "jlceda.calc_trace_width": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "53:625"
+  },
+  "jlceda.pcb_auto_fanout_and_route": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "87:98"
+  },
+  "jlceda.pcb_auto_place_components": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "87:237"
+  },
+  "jlceda.pcb_auto_silkscreen": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "42:98"
+  },
+  "jlceda.pcb_bom_export": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "99:375"
+  },
+  "jlceda.pcb_bridge_status": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "100:98"
+  },
+  "jlceda.pcb_create_component": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "28:739"
+  },
+  "jlceda.pcb_create_copper_pour": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "24:743"
+  },
+  "jlceda.pcb_create_diff_pair": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "15:449"
+  },
+  "jlceda.pcb_create_equal_length": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "15:398"
+  },
+  "jlceda.pcb_create_keepout": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "21:629"
+  },
+  "jlceda.pcb_current_density_report": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "94:98"
+  },
+  "jlceda.pcb_delete_diff_pair": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "15:249"
+  },
+  "jlceda.pcb_delete_equal_length": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "15:249"
+  },
+  "jlceda.pcb_delete_keepout": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "15:266"
+  },
+  "jlceda.pcb_delete_pour": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "12:1339"
+  },
+  "jlceda.pcb_delete_selected": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "27:98"
+  },
+  "jlceda.pcb_delete_tracks": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "12:322"
+  },
+  "jlceda.pcb_delete_via": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "12:322"
+  },
+  "jlceda.pcb_design_diff": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "71:98"
+  },
+  "jlceda.pcb_design_health_report": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "110:98"
+  },
+  "jlceda.pcb_design_snapshot": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "68:98"
+  },
+  "jlceda.pcb_drc_autofix": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "104:98"
+  },
+  "jlceda.pcb_eprj3_project_info": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "155:319"
+  },
+  "jlceda.pcb_fanout_component": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "66:267"
+  },
+  "jlceda.pcb_get_board_info": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "42:98"
+  },
+  "jlceda.pcb_get_feature_support": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "35:98"
+  },
+  "jlceda.pcb_get_net_primitives": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "33:244"
+  },
+  "jlceda.pcb_get_pads": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "18:232"
+  },
+  "jlceda.pcb_get_silkscreens": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "24:98"
+  },
+  "jlceda.pcb_list_diff_pairs": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "21:98"
+  },
+  "jlceda.pcb_list_eda_windows": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "57:98"
+  },
+  "jlceda.pcb_list_equal_lengths": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "21:98"
+  },
+  "jlceda.pcb_move_component": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "33:534"
+  },
+  "jlceda.pcb_move_silkscreen": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "18:526"
+  },
+  "jlceda.pcb_netlist_report": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "86:98"
+  },
+  "jlceda.pcb_ping": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "26:98"
+  },
+  "jlceda.pcb_relocate_component": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "42:521"
+  },
+  "jlceda.pcb_route_differential_pairs": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "101:540"
+  },
+  "jlceda.pcb_select_component": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "27:258"
+  },
+  "jlceda.sch_get_state": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "21:285"
+  },
+  "jlceda.pcb_select_eda_window": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "72:284"
+  },
+  "jlceda.sch_generate_from_netlist": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "138:394"
+  },
+  "jlceda.sch_generate_from_pcb": {
+   "at": "2026-11-06T03:55:12.765Z",
+   "sig": "87:234"
+  },
+  "jlceda.sch_run_drc": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "19:223"
+  },
+  "jlceda-native.api_index": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "39:283"
+  },
+  "jlceda-native.api_invoke": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "1765:2008"
+  },
+  "jlceda-native.api_search": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "39:1227"
+  },
+  "jlceda-native.board_setup": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "323:814"
+  },
+  "jlceda-native.bridge_clients": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "212:136"
+  },
+  "jlceda-native.bridge_select_client": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "368:556"
+  },
+  "jlceda-native.component_place": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "318:1365"
+  },
+  "jlceda-native.component_place_auto": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "330:4238"
+  },
+  "jlceda-native.eda_context": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "44:484"
+  },
+  "jlceda-native.schematic_review": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "54:1823"
+  },
+  "jlceda-native.bridge_recover_client": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "1335:7491"
+  },
+  "jlceda-native.eda_canvas_snapshot": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "142:747"
+  },
+  "jlceda-native.editor_navigate": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "260:1354"
+  },
+  "jlceda-native.footprint_read": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "610:260"
+  },
+  "jlceda-native.footprint_save": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "432:1830"
+  },
+  "jlceda-native.component_select": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "184:5261"
+  },
+  "jlceda-native.design_archive_export": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "150:5524"
+  },
+  "jlceda-native.library_sources": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "109:370"
+  },
+  "jlceda-native.manufacture_templates_query": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "105:1662"
+  },
+  "jlceda-native.design_compare": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "84:7717"
+  },
+  "jlceda-native.library_classification_query": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "384:793"
+  },
+  "jlceda-native.netlabel_modify": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "185:1176"
+  },
+  "jlceda-native.netlabel_place": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "312:1502"
+  },
+  "jlceda-native.pcb_layer_query": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "39:1452"
+  },
+  "jlceda-native.design_source_export": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "158:4488"
+  },
+  "jlceda-native.library_preview": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "112:3912"
+  },
+  "jlceda-native.netlist_compare": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "86:1412"
+  },
+  "jlceda-native.pcb_drc_check": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "273:944"
+  },
+  "jlceda-native.pcb_realtime_drc": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "75:1345"
+  },
+  "jlceda-native.library_search": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "354:10629"
+  },
+  "jlceda-native.pcb_layer_manage": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "305:2077"
+  },
+  "jlceda-native.pcb_connectivity_action": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "442:4854"
+  },
+  "jlceda-native.pcb_constraints_query": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "96:5426"
+  },
+  "jlceda-native.pcb_read": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "320:782"
+  },
+  "jlceda-native.schematic_drc_check": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "77:1263"
+  },
+  "jlceda-native.pcb_documents_manage": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "231:2934"
+  },
+  "jlceda-native.pcb_net_query": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "161:7193"
+  },
+  "jlceda-native.project_info": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "210:1693"
+  },
+  "jlceda-native.schematic_auto_layout": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "223:1589"
+  },
+  "jlceda-native.schematic_auto_routing": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "217:1598"
+  },
+  "jlceda-native.schematic_layout_check": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "271:1467"
+  },
+  "jlceda-native.schematic_pages_manage": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "138:2706"
+  },
+  "jlceda-native.schematic_read": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "439:1206"
+  },
+  "jlceda-native.schematic_component_edit": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "264:13062"
+  },
+  "jlceda-native.schematic_connectivity_action": {
+   "at": "2026-11-06T03:55:14.388Z",
+   "sig": "464:11106"
+  },
+  "jlceda-native.schematic_text_manage": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "322:6956"
+  },
+  "jlceda-native.schematic_wire_manage": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "503:9168"
+  },
+  "jlceda-native.workspace_query": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "126:6322"
+  },
+  "lceda-cli.lceda-pro.call": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "204:325"
+  },
+  "lceda-cli.lceda-pro.discover": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "216:253"
+  },
+  "lceda-cli.lceda-pro.help": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "252:190"
+  },
+  "freeroute.freeroute_dump": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "148:239"
+  },
+  "freeroute.freeroute_export_dsn": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "130:395"
+  },
+  "freeroute.freeroute_verify": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "111:93"
+  },
+  "freeroute.pour_create_rect": {
+   "at": "2026-11-06T03:55:14.389Z",
+   "sig": "126:1333"
+  },
+  "freeroute.pour_delete": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "106:272"
+  },
+  "freecad.create_document": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "292:182"
+  },
+  "freecad.create_object": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "3972:1134"
+  },
+  "freecad.delete_object": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "588:694"
+  },
+  "freecad.edit_object": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "716:837"
+  },
+  "freecad.execute_code": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "1124:781"
+  },
+  "freecad.get_async_status": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "402:176"
+  },
+  "freecad.get_parts_list": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "49:80"
+  },
+  "freecad.list_documents": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "77:356"
+  },
+  "freecad.get_object": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "510:691"
+  },
+  "freecad.get_objects": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "493:601"
+  },
+  "freecad.get_rpc_status": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "342:80"
+  },
+  "freecad.get_view": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "554:954"
+  },
+  "freecad.insert_part_from_library": {
+   "at": "2026-11-06T03:36:58.304Z",
+   "sig": "552:629"
+  },
+  "freecad.reload_document": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "704:269"
+  },
+  "freecad.run_fem_analysis": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "1437:808"
+  },
+  "playwright.browser_click": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "27:1078"
+  },
+  "playwright.browser_close": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "14:136"
+  },
+  "playwright.browser_console_messages": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "28:888"
+  },
+  "playwright.browser_drag": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "42:862"
+  },
+  "playwright.browser_drop": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "135:981"
+  },
+  "playwright.browser_emulate_media": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "164:1590"
+  },
+  "playwright.browser_evaluate": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "49:849"
+  },
+  "playwright.browser_file_upload": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "28:377"
+  },
+  "playwright.browser_fill_form": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "25:1501"
+  },
+  "playwright.browser_find": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "340:812"
+  },
+  "playwright.browser_handle_dialog": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "15:398"
+  },
+  "playwright.browser_hover": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "26:487"
+  },
+  "playwright.browser_navigate": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "17:259"
+  },
+  "playwright.browser_navigate_back": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "43:529"
+  },
+  "playwright.browser_network_request": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "149:840"
+  },
+  "playwright.browser_network_requests": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "132:736"
+  },
+  "playwright.browser_press_key": {
+   "at": "2026-11-06T03:55:16.091Z",
+   "sig": "27:316"
+  },
+  "playwright.browser_resize": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "25:381"
+  },
+  "playwright.browser_run_code_unsafe": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "124:712"
+  },
+  "playwright.browser_select_option": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "30:711"
+  },
+  "playwright.browser_snapshot": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "82:826"
+  },
+  "playwright.browser_tabs": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "45:617"
+  },
+  "playwright.browser_take_screenshot": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "123:1608"
+  },
+  "playwright.browser_type": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "31:924"
+  },
+  "playwright.browser_wait_for": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "64:441"
+  },
+  "chrome-devtools.click": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "30:683"
+  },
+  "chrome-devtools.close_page": {
+   "at": "2026-11-06T03:36:58.304Z",
+   "sig": "66:302"
+  },
+  "chrome-devtools.drag": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "36:657"
+  },
+  "chrome-devtools.emulate": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "161:2802"
+  },
+  "chrome-devtools.evaluate_script": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "185:2083"
+  },
+  "chrome-devtools.fill": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "79:743"
+  },
+  "chrome-devtools.fill_form": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "318:1063"
+  },
+  "chrome-devtools.get_console_message": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "92:431"
+  },
+  "chrome-devtools.get_css_styles": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "608:877"
+  },
+  "chrome-devtools.list_pages": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "40:904"
+  },
+  "chrome-devtools.get_network_request": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "246:872"
+  },
+  "chrome-devtools.handle_dialog": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "61:579"
+  },
+  "chrome-devtools.hover": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "31:561"
+  },
+  "chrome-devtools.lighthouse_audit": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "239:820"
+  },
+  "chrome-devtools.list_console_messages": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "72:1903"
+  },
+  "chrome-devtools.list_network_requests": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "77:1554"
+  },
+  "chrome-devtools.navigate_page": {
+   "at": "2026-11-06T03:55:16.092Z",
+   "sig": "85:1347"
+  },
+  "chrome-devtools.new_page": {
+   "at": "2026-11-06T03:55:17.736Z",
+   "sig": "74:1016"
+  },
+  "chrome-devtools.performance_analyze_insight": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "144:670"
+  },
+  "chrome-devtools.performance_start_trace": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "151:1618"
+  },
+  "chrome-devtools.performance_stop_trace": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "66:525"
+  },
+  "chrome-devtools.press_key": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "166:626"
+  },
+  "chrome-devtools.resize_page": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "66:592"
+  },
+  "chrome-devtools.screencast_start": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "57:426"
+  },
+  "chrome-devtools.screencast_stop": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "57:273"
+  },
+  "chrome-devtools.select_page": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "49:440"
+  },
+  "chrome-devtools.take_heapsnapshot": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "128:421"
+  },
+  "chrome-devtools.take_screenshot": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "41:1319"
+  },
+  "chrome-devtools.take_snapshot": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "302:649"
+  },
+  "chrome-devtools.type_text": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "56:516"
+  },
+  "chrome-devtools.upload_file": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "41:878"
+  },
+  "chrome-devtools.wait_for": {
+   "at": "2026-11-06T03:55:17.737Z",
+   "sig": "59:719"
+  },
+  "konnect.add_board_outline": {
+   "at": "2026-11-06T03:54:57.665Z",
+   "sig": "270:732"
+  },
+  "konnect.add_board_text": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "57:635"
+  },
+  "konnect.add_bus": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "245:419"
+  },
+  "konnect.add_bus_entry": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "242:660"
+  },
+  "konnect.add_component_annotation": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "85:533"
+  },
+  "konnect.add_copper_pour": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "268:1525"
+  },
+  "konnect.add_design_rule": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "201:493"
+  },
+  "konnect.add_hierarchical_sheet": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "452:1160"
+  },
+  "konnect.add_junction": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "172:263"
+  },
+  "konnect.add_layer": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "67:424"
+  },
+  "konnect.add_mounting_hole": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "363:735"
+  },
+  "konnect.add_net": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "310:219"
+  },
+  "konnect.add_no_connect": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "64:263"
+  },
+  "konnect.add_power_symbol": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "358:6767"
+  },
+  "konnect.add_schematic_component": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "345:1677"
+  },
+  "konnect.add_schematic_connection": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "151:371"
+  },
+  "konnect.add_schematic_net_label": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "99:763"
+  },
+  "konnect.add_schematic_text": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "75:2069"
+  },
+  "konnect.add_sheet_pin": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "315:1138"
+  },
+  "konnect.add_via": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "80:548"
+  },
+  "konnect.add_wire": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "146:371"
+  },
+  "konnect.add_zone": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "517:1525"
+  },
+  "konnect.align_components": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "67:486"
+  },
+  "konnect.apply_specctra_ses": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "229:652"
+  },
+  "konnect.get_active_toolsets": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "78:6123"
+  },
+  "konnect.annotate_schematic": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "1278:1151"
+  },
+  "konnect.apply_template": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "224:969"
+  },
+  "konnect.assign_net_to_class": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "193:467"
+  },
+  "konnect.audit_connections": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "243:453"
+  },
+  "konnect.audit_decoupling": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "278:453"
+  },
+  "konnect.audit_manufacturing": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "125:364"
+  },
+  "konnect.audit_power_rails": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "221:453"
+  },
+  "konnect.auto_place_from_schematic": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "922:767"
+  },
+  "konnect.batch_add_bus": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "60:783"
+  },
+  "konnect.batch_add_junction": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "61:470"
+  },
+  "konnect.batch_add_no_connect": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "176:589"
+  },
+  "konnect.batch_add_wire": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "61:680"
+  },
+  "konnect.delete_component": {
+   "at": "2026-11-06T03:54:57.666Z",
+   "sig": "48:5895"
+  },
+  "konnect.batch_connect_pins": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "100:756"
+  },
+  "konnect.batch_connect_to_net": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "567:1646"
+  },
+  "konnect.batch_delete": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "135:521"
+  },
+  "konnect.batch_delete_no_connect": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "67:470"
+  },
+  "konnect.batch_delete_schematic_components": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "81:385"
+  },
+  "konnect.batch_delete_schematic_wire": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "165:271"
+  },
+  "konnect.batch_edit_schematic_components": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "204:1152"
+  },
+  "konnect.batch_get_schematic_pin_locations": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "177:335"
+  },
+  "konnect.batch_place_components": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "641:1546"
+  },
+  "konnect.batch_rotate_labels": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "69:591"
+  },
+  "konnect.bulk_move_schematic_components": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "449:565"
+  },
+  "konnect.check_bom_health": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "236:5723"
+  },
+  "konnect.check_clearance": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "599:682"
+  },
+  "konnect.check_freerouting": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "121:223"
+  },
+  "konnect.check_kicad_ui": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "831:277"
+  },
+  "konnect.check_schematic_overlaps": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "238:367"
+  },
+  "konnect.compare_visual_baseline": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "360:367"
+  },
+  "konnect.connect_passthrough": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "155:944"
+  },
+  "konnect.connect_pins": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "126:617"
+  },
+  "konnect.connect_pins_to_bus": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "400:1008"
+  },
+  "konnect.connect_to_net": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "351:1327"
+  },
+  "konnect.copy_routing_pattern": {
+   "at": "2026-11-06T03:54:57.667Z",
+   "sig": "81:1086"
+  },
+  "konnect.create_netclass": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "783:5790"
+  },
+  "konnect.create_footprint": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "71:4384"
+  },
+  "konnect.create_project": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "205:343"
+  },
+  "konnect.create_schematic": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "130:732"
+  },
+  "konnect.delete_graphics": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "768:971"
+  },
+  "konnect.delete_no_connect": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "45:263"
+  },
+  "konnect.delete_schematic_component": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "95:286"
+  },
+  "konnect.delete_schematic_net_label": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "44:317"
+  },
+  "konnect.delete_schematic_wire": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "226:502"
+  },
+  "konnect.delete_sheet": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "209:231"
+  },
+  "konnect.delete_sheet_pin": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "72:295"
+  },
+  "konnect.delete_symbol": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "58:348"
+  },
+  "konnect.delete_trace": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "246:271"
+  },
+  "konnect.download_jlcpcb_database": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "76:4990"
+  },
+  "konnect.duplicate_component": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "64:491"
+  },
+  "konnect.duplicate_sheet": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "397:671"
+  },
+  "konnect.edit_board_footprint_graphic": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "419:870"
+  },
+  "konnect.edit_component": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "73:318"
+  },
+  "konnect.edit_footprint_pad": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "108:1798"
+  },
+  "konnect.edit_schematic_component": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "158:1979"
+  },
+  "konnect.edit_sheet": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "296:781"
+  },
+  "konnect.edit_sheet_pin": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "169:1204"
+  },
+  "konnect.enrich_datasheets": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "84:352"
+  },
+  "konnect.estimate_cost": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "210:734"
+  },
+  "konnect.export_3d": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "60:4930"
+  },
+  "konnect.export_bom": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "75:1342"
+  },
+  "konnect.export_dxf": {
+   "at": "2026-11-06T03:54:59.329Z",
+   "sig": "149:529"
+  },
+  "konnect.export_gencad": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "146:309"
+  },
+  "konnect.export_gerber": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "178:708"
+  },
+  "konnect.export_ipc2581": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "219:576"
+  },
+  "konnect.export_manufacturing_package": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "342:2471"
+  },
+  "konnect.export_netlist": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "62:491"
+  },
+  "konnect.export_netlist_summary": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "176:211"
+  },
+  "konnect.export_odb": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "164:584"
+  },
+  "konnect.export_pdf": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "52:610"
+  },
+  "konnect.export_position_file": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "147:953"
+  },
+  "konnect.export_schematic_pdf": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "55:603"
+  },
+  "konnect.find_component": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "78:221"
+  },
+  "konnect.get_board_extents": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "96:4167"
+  },
+  "konnect.export_schematic_svg": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "366:581"
+  },
+  "konnect.export_specctra_dsn": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "757:973"
+  },
+  "konnect.export_svg": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "53:610"
+  },
+  "konnect.find_orphan_items": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "148:264"
+  },
+  "konnect.find_shorted_nets": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "156:163"
+  },
+  "konnect.find_single_pin_nets": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "447:163"
+  },
+  "konnect.fix_connectivity": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "183:463"
+  },
+  "konnect.flip_component": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "630:335"
+  },
+  "konnect.generate_netlist": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "65:470"
+  },
+  "konnect.get_board_2d_view": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "217:509"
+  },
+  "konnect.get_board_info": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "426:203"
+  },
+  "konnect.get_board_stackup": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "426:1934"
+  },
+  "konnect.get_component_list": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "74:155"
+  },
+  "konnect.get_component_nets": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "51:229"
+  },
+  "konnect.get_connected_items": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "129:3906"
+  },
+  "konnect.get_component_pads": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "591:221"
+  },
+  "konnect.get_datasheet_url": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "61:297"
+  },
+  "konnect.get_design_rules": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "85:203"
+  },
+  "konnect.get_drc_violations": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "335:917"
+  },
+  "konnect.get_editor_selection": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "255:994"
+  },
+  "konnect.get_editor_state": {
+   "at": "2026-11-06T03:54:59.330Z",
+   "sig": "311:93"
+  },
+  "konnect.get_effective_config": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "374:199"
+  },
+  "konnect.get_footprint_info": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "133:877"
+  },
+  "konnect.get_installation_info": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "372:93"
+  },
+  "konnect.get_jlcpcb_database_stats": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "93:93"
+  },
+  "konnect.get_jlcpcb_part": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "71:216"
+  },
+  "konnect.get_layer_list": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "335:675"
+  },
+  "konnect.get_net_components": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "61:217"
+  },
+  "konnect.get_net_connections": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "49:259"
+  },
+  "konnect.get_net_connectivity": {
+   "at": "2026-11-06T03:55:01.022Z",
+   "sig": "122:217"
+  },
+  "konnect.get_netclasses": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "1120:707"
+  },
+  "konnect.get_nets_list": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "49:155"
+  },
+  "konnect.get_pad_position": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "139:289"
+  },
+  "konnect.list_schematic_wires": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "75:3197"
+  },
+  "konnect.get_pin_connections": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "94:297"
+  },
+  "konnect.get_pin_net_name": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "59:297"
+  },
+  "konnect.get_predefined_sizes": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "210:235"
+  },
+  "konnect.get_project_info": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "280:213"
+  },
+  "konnect.get_recent_calls": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "264:270"
+  },
+  "konnect.get_schematic_component": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "111:229"
+  },
+  "konnect.get_schematic_layout": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "252:451"
+  },
+  "konnect.get_schematic_pin_locations": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "391:229"
+  },
+  "konnect.get_schematic_view": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "689:163"
+  },
+  "konnect.get_sheet_hierarchy": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "241:386"
+  },
+  "konnect.get_symbol_info": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "84:395"
+  },
+  "konnect.get_template": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "149:254"
+  },
+  "konnect.group_components": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "75:505"
+  },
+  "konnect.import_sheet_pins": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "386:820"
+  },
+  "konnect.import_svg_logo": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "295:825"
+  },
+  "konnect.launch_kicad_ui": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "68:489"
+  },
+  "konnect.list_board_footprint_graphics": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "466:403"
+  },
+  "konnect.list_design_rules": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "58:199"
+  },
+  "konnect.list_footprint_libraries": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "78:355"
+  },
+  "konnect.list_template_categories": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "75:2549"
+  },
+  "konnect.list_library_footprints": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "83:244"
+  },
+  "konnect.list_schematic_components": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "98:163"
+  },
+  "konnect.list_schematic_labels": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "114:163"
+  },
+  "konnect.list_schematic_nets": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "86:163"
+  },
+  "konnect.list_symbol_libraries": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "75:355"
+  },
+  "konnect.list_symbols_in_library": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "59:353"
+  },
+  "konnect.list_toolboxes": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "340:93"
+  },
+  "konnect.load_project_config": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "272:252"
+  },
+  "konnect.load_user_config": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "475:93"
+  },
+  "konnect.modify_trace": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "72:609"
+  },
+  "konnect.move_component": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "147:321"
+  },
+  "konnect.move_connected": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "246:93"
+  },
+  "konnect.move_labels_by_offset": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "58:321"
+  },
+  "konnect.move_region": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "411:763"
+  },
+  "konnect.move_schematic_component": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "514:419"
+  },
+  "konnect.move_sheet": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "73:331"
+  },
+  "konnect.mutate_editor_selection": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "218:1023"
+  },
+  "konnect.open_schematic_viewer": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "343:228"
+  },
+  "konnect.save_project": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "100:1972"
+  },
+  "konnect.place_component": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "130:641"
+  },
+  "konnect.place_component_array": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "75:1023"
+  },
+  "konnect.place_decoupling_caps": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "737:1124"
+  },
+  "konnect.plan_bga_fanout": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "383:530"
+  },
+  "konnect.plan_specctra_ses_import": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "196:482"
+  },
+  "konnect.query_traces": {
+   "at": "2026-11-06T03:55:01.023Z",
+   "sig": "139:348"
+  },
+  "konnect.refill_zones": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "169:203"
+  },
+  "konnect.refine_placement_force_directed": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "875:894"
+  },
+  "konnect.register_footprint_library": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "90:798"
+  },
+  "konnect.register_symbol_library": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "217:796"
+  },
+  "konnect.reload_server": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "491:436"
+  },
+  "konnect.renumber_sheet_pages": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "278:386"
+  },
+  "konnect.server_stats": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "178:1597"
+  },
+  "konnect.rename_project": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "398:701"
+  },
+  "konnect.render_schematic_png": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "330:732"
+  },
+  "konnect.repair_corrupted_footprints": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "474:653"
+  },
+  "konnect.replace_component": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "451:778"
+  },
+  "konnect.reset_schematic_field_positions": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "430:561"
+  },
+  "konnect.resolve_cross_probe_target": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "327:856"
+  },
+  "konnect.resolve_navigation_target": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "279:914"
+  },
+  "konnect.rotate_component": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "146:335"
+  },
+  "konnect.rotate_schematic_component": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "597:346"
+  },
+  "konnect.rotate_schematic_label": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "79:381"
+  },
+  "konnect.route_differential_pair": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "69:827"
+  },
+  "konnect.route_pad_to_pad": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "89:1886"
+  },
+  "konnect.route_specctra_dsn": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "249:899"
+  },
+  "konnect.route_trace": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "73:604"
+  },
+  "konnect.run_design_review": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "513:488"
+  },
+  "konnect.run_drc": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "368:1057"
+  },
+  "konnect.run_erc": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "457:564"
+  },
+  "konnect.save_project_config": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "202:413"
+  },
+  "konnect.save_user_config": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "440:402"
+  },
+  "konnect.score_placement": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "671:203"
+  },
+  "konnect.search_footprints": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "73:346"
+  },
+  "konnect.search_jlcpcb_parts": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "74:724"
+  },
+  "konnect.search_symbols": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "70:523"
+  },
+  "konnect.search_templates": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "256:409"
+  },
+  "konnect.set_active_layer": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "304:268"
+  },
+  "konnect.set_board_size": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "256:1410"
+  },
+  "konnect.set_component_placements": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "211:921"
+  },
+  "konnect.set_design_rules": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "98:743"
+  },
+  "konnect.set_footprint_graphics": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "172:8212"
+  },
+  "konnect.set_footprint_metadata": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "140:950"
+  },
+  "konnect.split_wire_at_point": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "198:885"
+  },
+  "konnect.set_footprint_models": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "139:2305"
+  },
+  "konnect.set_layer_constraints": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "111:554"
+  },
+  "konnect.set_placed_footprint_models": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "314:2189"
+  },
+  "konnect.set_predefined_sizes": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "431:1188"
+  },
+  "konnect.set_schematic_page": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "230:708"
+  },
+  "konnect.set_visual_baseline": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "266:362"
+  },
+  "konnect.snapshot_project": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "120:548"
+  },
+  "konnect.suggest_jlcpcb_alternatives": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "83:561"
+  },
+  "konnect.trace_from_point": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "261:364"
+  },
+  "konnect.unload_toolset": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "179:200"
+  },
+  "konnect.validate_for_manufacturing": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "343:642"
+  },
+  "konnect.update_footprints_from_library": {
+   "at": "2026-11-06T03:55:02.645Z",
+   "sig": "284:908"
+  },
+  "konnect.update_pcb_from_schematic": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "547:624"
+  },
+  "konnect.update_symbols_from_library": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "419:835"
+  },
+  "konnect.validate_component_connections": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "266:532"
+  },
+  "konnect.validate_sheet_pins": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "403:216"
+  },
+  "konnect.validate_wire_connections": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "145:400"
+  },
+  "kicad-gui.add_board_outline": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "98:2107"
+  },
+  "kicad-gui.add_board_text": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "66:1414"
+  },
+  "kicad-gui.add_component_3d_model": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "240:1409"
+  },
+  "kicad-gui.add_component_annotation": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "52:544"
+  },
+  "kicad-gui.add_copper_pour": {
+   "at": "2026-11-06T03:55:02.646Z",
+   "sig": "49:885"
+  },
+  "kicad-gui.add_footprint_3d_model": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "244:1280"
+  },
+  "kicad-gui.add_gnd_stitching_vias": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "474:2012"
+  },
+  "kicad-gui.add_layer": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "55:711"
+  },
+  "kicad-gui.check_kicad_ui": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "38:6747"
+  },
+  "kicad-gui.add_hierarchical_sheet": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "273:1255"
+  },
+  "kicad-gui.add_library_symbol_property": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "198:1227"
+  },
+  "kicad-gui.add_mounting_hole": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "73:1018"
+  },
+  "kicad-gui.add_net": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "27:329"
+  },
+  "kicad-gui.add_no_connect": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "301:845"
+  },
+  "kicad-gui.add_schematic_component": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "110:1577"
+  },
+  "kicad-gui.add_schematic_hierarchical_label": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "239:1001"
+  },
+  "kicad-gui.add_schematic_net_label": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "437:1486"
+  },
+  "kicad-gui.add_schematic_text": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "226:7565"
+  },
+  "kicad-gui.add_schematic_wire": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "723:860"
+  },
+  "kicad-gui.add_sheet_pin": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "234:1225"
+  },
+  "kicad-gui.add_symbol_property": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "228:1156"
+  },
+  "kicad-gui.add_via": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "20:729"
+  },
+  "kicad-gui.add_zone": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "68:1377"
+  },
+  "kicad-gui.align_components": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "90:752"
+  },
+  "kicad-gui.annotate_schematic": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "290:279"
+  },
+  "kicad-gui.assign_net_to_class": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "73:357"
+  },
+  "kicad-gui.autoplace_schematic_fields": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "330:621"
+  },
+  "kicad-gui.backannotate_footprints": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "792:1017"
+  },
+  "kicad-gui.check_freerouting": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "113:244"
+  },
+  "kicad-gui.clear_board_outline": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "57:6109"
+  },
+  "kicad-gui.autoroute": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "579:1915"
+  },
+  "kicad-gui.batch_add_and_connect": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "401:1886"
+  },
+  "kicad-gui.batch_add_components": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "495:2108"
+  },
+  "kicad-gui.batch_add_no_connects": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "155:720"
+  },
+  "kicad-gui.batch_connect": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "602:969"
+  },
+  "kicad-gui.batch_edit_schematic_components": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "216:510"
+  },
+  "kicad-gui.batch_list_symbol_pins": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "642:6443"
+  },
+  "kicad-gui.batch_move_components": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "140:1693"
+  },
+  "kicad-gui.batch_set_schematic_property_positions": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "278:1145"
+  },
+  "kicad-gui.check_clearance": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "131:2584"
+  },
+  "kicad-gui.check_courtyard_overlaps": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "347:1788"
+  },
+  "kicad-gui.check_placement_clearance": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "119:510"
+  },
+  "kicad-gui.close_project": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "258:625"
+  },
+  "kicad-gui.close_toolbox": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "108:337"
+  },
+  "kicad-gui.connect_passthrough": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "258:792"
+  },
+  "kicad-gui.create_board_from_schematic": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "122:6027"
+  },
+  "kicad-gui.connect_to_net": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "274:638"
+  },
+  "kicad-gui.copy_routing_pattern": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "300:828"
+  },
+  "kicad-gui.create_footprint": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "153:5922"
+  },
+  "kicad-gui.create_hierarchical_subsheet": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "183:1287"
+  },
+  "kicad-gui.create_netclass": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "93:1205"
+  },
+  "kicad-gui.create_project": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "26:349"
+  },
+  "kicad-gui.create_schematic": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "22:330"
+  },
+  "kicad-gui.delete_graphic": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "42:5518"
+  },
+  "kicad-gui.create_symbol": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "640:5902"
+  },
+  "kicad-gui.delete_component": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "60:304"
+  },
+  "kicad-gui.delete_schematic_component": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "719:870"
+  },
+  "kicad-gui.delete_schematic_net_label": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "38:755"
+  },
+  "kicad-gui.delete_schematic_wire": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "62:931"
+  },
+  "kicad-gui.delete_symbol": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "47:377"
+  },
+  "kicad-gui.delete_trace": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "93:6103"
+  },
+  "kicad-gui.digikey_check_library_availability": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "812:2004"
+  },
+  "kicad-gui.digikey_search_parts": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "569:1719"
+  },
+  "kicad-gui.digikey_test_connection": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "412:1000"
+  },
+  "kicad-gui.discard_or_reload": {
+   "at": "2026-11-06T03:55:04.329Z",
+   "sig": "71:258"
+  },
+  "kicad-gui.download_jlcpcb_database": {
+   "at": "2026-11-06T03:55:06.015Z",
+   "sig": "649:587"
+  },
+  "kicad-gui.duplicate_component": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "102:969"
+  },
+  "kicad-gui.edit_component": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "75:598"
+  },
+  "kicad-gui.enrich_datasheets": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "527:464"
+  },
+  "kicad-gui.estimate_airwire_lengths": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "69:280"
+  },
+  "kicad-gui.export_dsn": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "110:379"
+  },
+  "kicad-gui.get_jlcpcb_database_stats": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "52:4782"
+  },
+  "kicad-gui.edit_footprint_pad": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "136:2156"
+  },
+  "kicad-gui.edit_schematic_component": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "1048:4333"
+  },
+  "kicad-gui.export_3d": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "129:919"
+  },
+  "kicad-gui.export_bom": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "79:753"
+  },
+  "kicad-gui.export_drill": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "279:6733"
+  },
+  "kicad-gui.export_3d_cli": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "567:4088"
+  },
+  "kicad-gui.export_gencad": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "244:1163"
+  },
+  "kicad-gui.export_gerber": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "120:918"
+  },
+  "kicad-gui.export_gerber_single": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "345:2763"
+  },
+  "kicad-gui.export_ipcd356": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "168:398"
+  },
+  "kicad-gui.export_netlist": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "370:649"
+  },
+  "kicad-gui.get_backend_state": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "88:4461"
+  },
+  "kicad-gui.export_gerbers": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "292:2913"
+  },
+  "kicad-gui.export_ipc2581": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "320:1783"
+  },
+  "kicad-gui.export_odb": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "197:1143"
+  },
+  "kicad-gui.export_pcb_dxf": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "326:2907"
+  },
+  "kicad-gui.export_pdf": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "96:906"
+  },
+  "kicad-gui.export_position_file": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "100:779"
+  },
+  "kicad-gui.get_board_info": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "95:4281"
+  },
+  "kicad-gui.export_pcb_pdf": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "371:3046"
+  },
+  "kicad-gui.export_pcb_svg": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "374:2975"
+  },
+  "kicad-gui.export_pos": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "315:1734"
+  },
+  "kicad-gui.export_sch_bom": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "260:2416"
+  },
+  "kicad-gui.export_schematic_pdf": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "47:4547"
+  },
+  "kicad-gui.export_sch_dxf": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "234:1228"
+  },
+  "kicad-gui.export_sch_hpgl": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "246:1253"
+  },
+  "kicad-gui.export_sch_pdf": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "307:1784"
+  },
+  "kicad-gui.export_sch_ps": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "260:1372"
+  },
+  "kicad-gui.export_sch_python_bom": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "251:398"
+  },
+  "kicad-gui.export_sch_svg": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "255:1365"
+  },
+  "kicad-gui.export_schematic_svg": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "47:496"
+  },
+  "kicad-gui.export_svg": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "90:682"
+  },
+  "kicad-gui.export_symbol": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "84:519"
+  },
+  "kicad-gui.export_vrml": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "77:518"
+  },
+  "kicad-gui.get_board_origin": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "83:4029"
+  },
+  "kicad-gui.find_component": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "99:340"
+  },
+  "kicad-gui.find_duplicate_symbols": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "735:1780"
+  },
+  "kicad-gui.find_orphaned_wires": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "221:289"
+  },
+  "kicad-gui.find_overlapping_elements": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "195:499"
+  },
+  "kicad-gui.find_wires_crossing_symbols": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "212:289"
+  },
+  "kicad-gui.generate_netlist": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "361:298"
+  },
+  "kicad-gui.get_board_2d_view": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "447:1124"
+  },
+  "kicad-gui.get_board_extents": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "82:305"
+  },
+  "kicad-gui.get_component_geometry": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "95:398"
+  },
+  "kicad-gui.get_component_list": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "96:1030"
+  },
+  "kicad-gui.get_component_pads": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "83:466"
+  },
+  "kicad-gui.get_component_properties": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "87:294"
+  },
+  "kicad-gui.get_datasheet_url": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "262:313"
+  },
+  "kicad-gui.get_design_rules": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "92:98"
+  },
+  "kicad-gui.get_drc_violations": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "103:310"
+  },
+  "kicad-gui.get_footprint_info": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "51:3699"
+  },
+  "kicad-gui.get_elements_in_region": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "154:747"
+  },
+  "kicad-gui.get_jlcpcb_part": {
+   "at": "2026-11-06T03:55:06.016Z",
+   "sig": "482:290"
+  },
+  "kicad-gui.get_layer_list": {
+   "at": "2026-11-06T03:55:07.677Z",
+   "sig": "63:98"
+  },
+  "kicad-gui.get_net_at_point": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "243:477"
+  },
+  "kicad-gui.get_net_connections": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "35:389"
+  },
+  "kicad-gui.get_net_pads": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "56:467"
+  },
+  "kicad-gui.get_nets_list": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "59:449"
+  },
+  "kicad-gui.get_pad_position": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "129:574"
+  },
+  "kicad-gui.get_pads": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "103:562"
+  },
+  "kicad-gui.get_project_info": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "47:98"
+  },
+  "kicad-gui.get_ratsnest": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "89:398"
+  },
+  "kicad-gui.get_schematic_component": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "491:414"
+  },
+  "kicad-gui.get_schematic_pin_locations": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "156:417"
+  },
+  "kicad-gui.get_schematic_view": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "198:647"
+  },
+  "kicad-gui.get_schematic_view_region": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "185:1134"
+  },
+  "kicad-gui.get_sheet_properties": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "217:496"
+  },
+  "kicad-gui.get_symbol_info": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "133:497"
+  },
+  "kicad-gui.import_ses": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "100:3134"
+  },
+  "kicad-gui.get_wire_connections": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "430:761"
+  },
+  "kicad-gui.group_components": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "85:459"
+  },
+  "kicad-gui.hierarchical_place": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "374:292"
+  },
+  "kicad-gui.import_3d_model": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "232:933"
+  },
+  "kicad-gui.import_eagle_project": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "184:764"
+  },
+  "kicad-gui.import_pcb": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "418:1022"
+  },
+  "kicad-gui.import_svg_logo": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "202:1150"
+  },
+  "kicad-gui.import_symbol": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "225:810"
+  },
+  "kicad-gui.is_dirty": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "98:98"
+  },
+  "kicad-gui.launch_kicad_ui": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "47:379"
+  },
+  "kicad-gui.lint_offgrid": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "655:556"
+  },
+  "kicad-gui.lint_schematic_cosmetic": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "657:646"
+  },
+  "kicad-gui.refill_zones": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "187:2486"
+  },
+  "kicad-gui.list_floating_labels": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "313:289"
+  },
+  "kicad-gui.list_footprint_libraries": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "146:353"
+  },
+  "kicad-gui.list_graphics": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "88:251"
+  },
+  "kicad-gui.list_libraries": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "44:306"
+  },
+  "kicad-gui.list_library_footprints": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "47:535"
+  },
+  "kicad-gui.list_library_symbols": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "136:468"
+  },
+  "kicad-gui.list_library_table": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "513:821"
+  },
+  "kicad-gui.list_schematic_components": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "156:702"
+  },
+  "kicad-gui.list_schematic_labels": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "142:716"
+  },
+  "kicad-gui.list_schematic_nets": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "54:279"
+  },
+  "kicad-gui.list_schematic_texts": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "250:426"
+  },
+  "kicad-gui.list_schematic_wires": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "59:279"
+  },
+  "kicad-gui.list_symbol_libraries": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "182:340"
+  },
+  "kicad-gui.list_symbol_pins": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "412:457"
+  },
+  "kicad-gui.list_symbols_in_library": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "51:275"
+  },
+  "kicad-gui.list_toolboxes": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "231:98"
+  },
+  "kicad-gui.modify_trace": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "55:526"
+  },
+  "kicad-gui.move_component": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "103:3016"
+  },
+  "kicad-gui.move_footprint_text": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "88:1011"
+  },
+  "kicad-gui.move_schematic_component": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "358:1547"
+  },
+  "kicad-gui.move_schematic_net_label": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "163:1327"
+  },
+  "kicad-gui.open_board": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "80:279"
+  },
+  "kicad-gui.open_project": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "30:279"
+  },
+  "kicad-gui.open_toolbox": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "230:375"
+  },
+  "kicad-gui.place_component": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "131:1639"
+  },
+  "kicad-gui.place_component_array": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "103:1581"
+  },
+  "kicad-gui.query_traces": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "79:1084"
+  },
+  "kicad-gui.query_zones": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "249:2528"
+  },
+  "kicad-gui.register_footprint_library": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "191:985"
+  },
+  "kicad-gui.register_symbol_library": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "159:787"
+  },
+  "kicad-gui.reload_board": {
+   "at": "2026-11-06T03:55:07.678Z",
+   "sig": "93:258"
+  },
+  "kicad-gui.remove_hierarchical_sheet": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "378:581"
+  },
+  "kicad-gui.remove_library_table_entry": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "563:1208"
+  },
+  "kicad-gui.remove_schematic_component_property": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "273:575"
+  },
+  "kicad-gui.rename_symbol": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "273:483"
+  },
+  "kicad-gui.repair_flat_symbols": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "854:431"
+  },
+  "kicad-gui.replace_board_outline": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "99:1480"
+  },
+  "kicad-gui.replace_component": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "107:623"
+  },
+  "kicad-gui.replace_instance_lib_ids": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "434:1884"
+  },
+  "kicad-gui.replace_schematic_component": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "255:696"
+  },
+  "kicad-gui.rotate_component": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "55:427"
+  },
+  "kicad-gui.rotate_schematic_component": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "106:1253"
+  },
+  "kicad-gui.route_arc_trace": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "102:1568"
+  },
+  "kicad-gui.route_differential_pair": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "257:1669"
+  },
+  "kicad-gui.route_pad_to_pad": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "366:1083"
+  },
+  "kicad-gui.route_trace": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "218:1186"
+  },
+  "kicad-gui.run_drc": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "117:244"
+  },
+  "kicad-gui.run_erc": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "156:289"
+  },
+  "kicad-gui.save_as": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "52:665"
+  },
+  "kicad-gui.save_board": {
+   "at": "2026-11-06T03:55:09.360Z",
+   "sig": "87:626"
+  },
+  "kicad-gui.set_active_layer": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "61:1120"
+  },
+  "kicad-gui.save_project": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "148:674"
+  },
+  "kicad-gui.search_footprints": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "61:531"
+  },
+  "kicad-gui.search_jlcpcb_parts": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "431:1160"
+  },
+  "kicad-gui.search_symbols": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "285:765"
+  },
+  "kicad-gui.search_tools": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "94:289"
+  },
+  "kicad-gui.set_board_origin": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "326:800"
+  },
+  "kicad-gui.set_board_size": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "70:513"
+  },
+  "kicad-gui.set_design_rules": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "94:1671"
+  },
+  "kicad-gui.set_footprint_type": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "310:1215"
+  },
+  "kicad-gui.set_layer_constraints": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "90:729"
+  },
+  "kicad-gui.set_net_color": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "175:519"
+  },
+  "kicad-gui.suggest_jlcpcb_alternatives": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "223:943"
+  },
+  "kicad-gui.set_library_table_uri": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "250:1332"
+  },
+  "kicad-gui.set_schematic_component_property": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "1064:1633"
+  },
+  "kicad-gui.set_schematic_property_position": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "233:1101"
+  },
+  "kicad-gui.set_sheet_property": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "498:764"
+  },
+  "kicad-gui.set_symbol_pin_type": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "994:2032"
+  },
+  "kicad-gui.snap_to_grid": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "273:951"
+  },
+  "kicad-gui.snapshot_project": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "275:861"
+  },
+  "kicad-gui.suggest_placement": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "692:4376"
+  },
+  "kicad-gui.suggest_schematic_declutter": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "622:802"
+  },
+  "kicad-gui.sync_schematic_to_board": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "377:431"
+  },
+  "kicad-gui.update_graphic": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "63:1546"
+  },
+  "kicad-gui.update_symbol_from_library": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "302:1234"
+  },
+  "kicad-gui.validate_schematic": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "659:628"
+  },
+  "kicad-gui.validate_symbol_library": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "671:540"
+  },
+  "kicad.analyze_hierarchical_nets": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "182:515"
+  },
+  "kicad.analyze_pcb_nets": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "160:211"
+  },
+  "kicad.analyze_pcb_power_integrity": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "71:211"
+  },
+  "kicad.analyze_pcb_signal_integrity": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "211:347"
+  },
+  "kicad.analyze_pin_functions": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "240:387"
+  },
+  "kicad.detect_pin_conflicts": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "185:221"
+  },
+  "kicad.download_registry_part": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "192:730"
+  },
+  "kicad.export_drc_report": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "71:367"
+  },
+  "kicad.export_erc_report": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "71:385"
+  },
+  "kicad.export_pcb_3d": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "123:520"
+  },
+  "kicad.export_schematic_svg": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "213:383"
+  },
+  "kicad.extract_gpio_config": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "47:343"
+  },
+  "kicad.extract_i2c_devices": {
+   "at": "2026-11-06T03:55:09.361Z",
+   "sig": "42:221"
+  },
+  "kicad.extract_pinmux_config": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "185:379"
+  },
+  "kicad.extract_power_domains": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "50:221"
+  },
+  "kicad.extract_spi_devices": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "42:221"
+  },
+  "kicad.find_tracks_by_net": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "48:329"
+  },
+  "kicad.get_drc_violations": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "37:366"
+  },
+  "kicad.get_erc_violations": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "43:366"
+  },
+  "kicad.get_netlist_components": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "63:362"
+  },
+  "kicad.get_netlist_nets": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "31:361"
+  },
+  "kicad.get_pcb_statistics": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "40:211"
+  },
+  "kicad.get_registry_part": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "161:229"
+  },
+  "kicad.get_schematic_info": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "47:211"
+  },
+  "kicad.get_symbol_details": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "59:351"
+  },
+  "kicad.list_pcb_footprints": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "40:453"
+  },
+  "kicad.list_schematic_components": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "46:975"
+  },
+  "kicad.list_schematic_nets": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "35:359"
+  },
+  "kicad.run_drc": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "170:484"
+  },
+  "kicad.run_erc": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "148:221"
+  },
+  "kicad.search_components_by_type": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "207:560"
+  },
+  "kicad.search_parts_registry": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "200:368"
+  },
+  "kicad.search_symbols": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "49:487"
+  },
+  "kicad.setup_pcb_layout": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "353:663"
+  },
+  "kicad.trace_hierarchical_connection": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "181:507"
+  },
+  "kicad.trace_netlist_connection": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "63:497"
+  },
+  "kicad.validate_pin_configuration": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "191:221"
+  },
+  "context7.query-docs": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "544:1555"
+  },
+  "context7.resolve-library-id": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "1999:885"
+  },
+  "fetch.fetch": {
+   "at": "2026-11-06T03:55:11.075Z",
+   "sig": "306:981"
+  },
+  "kicad-gui.search_parts_registry": {
+   "at": "2026-11-06T16:52:57.142Z",
+   "sig": ""
+  },
+  "kicad-gui.get_registry_part": {
+   "at": "2026-11-06T16:52:57.142Z",
+   "sig": ""
+  },
+  "kicad-gui.download_registry_part": {
+   "at": "2026-11-06T16:52:57.142Z",
+   "sig": ""
+  },
+  "kicad-gui.install_gui_driver": {
+   "at": "2026-11-06T16:52:57.142Z",
+   "sig": ""
+  },
+  "kicad-gui.kicad_gui_tree": {
+   "at": "2026-11-06T16:52:57.142Z",
+   "sig": ""
+  },
+  "konnect.create_symbol": {
+   "at": "2026-11-06T16:52:57.142Z",
+   "sig": ""
+  }
+ }
+}

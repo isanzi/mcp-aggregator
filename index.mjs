@@ -12,13 +12,118 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const CFG = JSON.parse(readFileSync(process.env.AGG_CONFIG || join(HERE, 'servers.json'), 'utf8'))
-const DESC_WIDTH = CFG.descWidth ?? 84
+const DESC_WIDTH = CFG.descWidth ?? 150   // catalog 一行上限：摘要按功能多少浮动，最长 150 字符
 // hub "load": index + on-demand FULL declarations. Folding stays; you pay only for what you load.
 const HUB = CFG.hub ?? {}
 const HUB_NAME = String(HUB.name ?? 'load')
 const HUB_LINE = Number(HUB.lineWidth ?? 96)
 const HUB_INDEX_BUDGET = Number(HUB.indexBudgetBytes ?? 6000)
 const HUB_FULL_BUDGET = Number(HUB.fullBudgetBytes ?? 12288)
+// echo: 工具被选中并成功调用时，把它的声明随结果回吐给模型（会话内每工具默认只回吐一次）。
+// off=关闭 · brief=作用+使用方法+必填参数名+enum · full=完整描述+schema
+const ECHO_MODE = String(HUB.echo ?? 'full').toLowerCase()
+const ECHO_BUDGET = Number(HUB.echoBudgetBytes ?? 6144)
+const ECHO_BATCH_BUDGET = Number(HUB.echoBatchBudgetBytes ?? 8192)
+const ECHO_ALWAYS = HUB.echoAlways === true
+const ECHO_ON = ECHO_MODE === 'full' || ECHO_MODE === 'brief'
+// 判据块（hub.notes / notesFile）：use 何时用 · alt 别用改用谁 · bounds 硬边界 · trap 坑
+// 精选摘要（hub.summary）：catalog 只显示 84 字符，描述被截的工具用这条 ≤84 字的手写摘要代替
+// 别名（hub.alias）：中文/别名关键词 → 工具引用，补 catalog 关键词检索的召回
+const NOTES = (function () {
+  let n = HUB.notes
+  if (HUB.notesFile) { try { const j = JSON.parse(readFileSync(join(HERE, String(HUB.notesFile)), 'utf8')); n = j.notes ?? j } catch (e) { log('hub.notesFile load failed: ' + String(e?.message ?? e)) } }
+  return (n && typeof n === 'object') ? n : {}
+})()
+const SUMMARY = (function () {
+  let s = (HUB.summary && typeof HUB.summary === 'object') ? HUB.summary : {}
+  if (HUB.summaryFile) {
+    try { const j = JSON.parse(readFileSync(join(HERE, String(HUB.summaryFile)), 'utf8')); s = { ...s, ...(j.summary ?? j) } } catch (e) { log('hub.summaryFile load failed: ' + String(e?.message ?? e)) }   // 文件优先，内联 summary 只作兜底
+  }
+  return s
+})()
+// 章节化说明书：hub.manualsFile = { "server.tool": { overview:{title,tags,body}, "op:wire":{…}, pitfalls:{…} } }
+const MANUALS = (function () {
+  if (!HUB.manualsFile) return {}
+  try {
+    const j = JSON.parse(readFileSync(join(HERE, String(HUB.manualsFile)), 'utf8'))
+    const man = (j.manuals ?? j) || {}
+    for (const t of Object.values(man)) for (const sec of Object.values(t || {})) {
+      if (typeof sec?.tags === 'string') sec.tags = sec.tags.split(',').map((x) => x.trim()).filter(Boolean)   // 容错：tags 允许写成逗号串
+    }
+    return man
+  } catch (e) { log('hub.manualsFile load failed: ' + String(e?.message ?? e)); return {} }
+})()
+const CATALOG_BUDGET = Number(HUB.catalogBudgetBytes ?? 6000)
+const ALIAS = (HUB.alias && typeof HUB.alias === 'object') ? HUB.alias : {}
+const noteBlock = function (e) {
+  const n = NOTES[e.server + '.' + e.tool]
+  if (!n) return ''
+  if (typeof n === 'string') return '[判据] ' + e.server + '.' + e.tool + '\n  ' + n
+  const L = ['[判据] ' + e.server + '.' + e.tool]
+  if (n.use) L.push('  何时用: ' + n.use)
+  if (n.alt) L.push('  别用/改用: ' + n.alt)
+  if (n.bounds) L.push('  硬边界: ' + n.bounds)
+  if (n.trap) L.push('  坑: ' + n.trap)
+  return L.join('\n')
+}
+const sel = function (e) { return SUMMARY[e.server + '.' + e.tool] }
+const displayDesc = function (e) {
+  const s = sel(e)
+  if (s && typeof s === 'object') return (s.fn ? s.fn : '') + (s.when ? ' ｜用法: ' + s.when : '')
+  return String(s ?? e.description ?? '')
+}
+// 必带段：与 echo 模式无关，永远给（最便宜、最值钱：参数对不对全靠这几行）
+// 结果形状提示（每工具每会话一次，随 ① 必带段下发）：MCP 结果不是字符串，是 content 块数组
+const SHAPE_HINT = '[结果形状] 返回 {content:[{type:"text",text}|{type:"image",data}]}：文本用 content.map(c=>c.text).join("")；'
+  + '别用 String()（静默得 15 字符 "[object Object]"）；图片块无 .text，join 会丢，按 type 判。';
+
+const basicDecl = function (e) {
+  const sch = e.schema ?? {}
+  const props = sch.properties ?? {}
+  const req = (Array.isArray(sch.required) ? sch.required : []).filter((k) => !(props[k] && Object.prototype.hasOwnProperty.call(props[k], 'default')))
+  const parts = ['[必填] ' + e.server + '.' + e.tool + ' → ' + (req.length ? req.join(', ') : '(无)'), SHAPE_HINT]
+  const enumLines = []
+  for (const k of Object.keys(props).slice(0, 12)) {
+    const pr = props[k] ?? {}
+    if (pr.enum) enumLines.push(k + '=' + pr.enum.join('/'))
+    else if (/\bmil\b|inch|mm|px|单位/.test(String(pr.description ?? ''))) enumLines.push(k + '(' + clip(flat(pr.description), 46) + ')')
+  }
+  if (enumLines.length) parts.push('  ' + enumLines.join(' · '))
+  return clip(parts.join('\n'), 780)
+}
+
+// 章节选择：显式 > 参数/意图命中 tags > overview 兜底
+const collectScrub = function (v, out, depth) {
+  if (depth > 4 || v === null || v === undefined) return out
+  if (typeof v === 'string') { if (v.length <= 60) out.push(v.toLowerCase()); return out }
+  if (typeof v === 'number' || typeof v === 'boolean') { out.push(String(v).toLowerCase()); return out }
+  if (Array.isArray(v)) { for (const x of v.slice(0, 40)) collectScrub(x, out, depth + 1); return out }
+  if (typeof v === 'object') { for (const k of Object.keys(v).slice(0, 20)) collectScrub(v[k], out, depth + 1) }
+  return out
+}
+const pickSections = function (e, args, intent, explicit) {
+  const man = MANUALS[e.server + '.' + e.tool]
+  if (!man) return []
+  const ids = Object.keys(man)
+  if (Array.isArray(explicit) && explicit.length) return ids.filter((id) => explicit.includes(id))
+  const hay = (String(intent ?? '') + ' ' + collectScrub(args ?? {}, [], 0).join(' ')).toLowerCase()
+  const hit = ids.filter((id) => id !== 'overview' && id !== 'pitfalls' && Array.isArray(man[id]?.tags)
+    && man[id].tags.some((tag) => hay.includes(String(tag).toLowerCase())))
+  return hit.length ? hit : (man.overview ? ['overview'] : [])
+}
+const sectionText = function (e, id) {
+  const man = MANUALS[e.server + '.' + e.tool]
+  const s = man?.[id]
+  if (!s) return ''
+  return '[手册·' + (s.title || id) + '] ' + e.server + '.' + e.tool + '#' + id + '\n' + String(s.body || '').trim()
+}
+const sectionIndex = function (e) {
+  const man = MANUALS[e.server + '.' + e.tool]
+  if (!man) return ''
+  return '[手册章节] ' + Object.keys(man).map((id) => id + '（' + (man[id].title || '') + '）').join(' · ') + ' —— describe({tool:"' + e.server + '.' + e.tool + '#<id>"}) 取单章'
+}
+// preflight: 参数预检（缺必填/未知键/enum 越界 → 不派发）。hub.preflight:false 可整体关掉。
+const PREFLIGHT = HUB.preflight !== false
 const CALL_TIMEOUT_MS = CFG.callTimeoutMs ?? 240000
 const CONNECT_TIMEOUT_MS = CFG.connectTimeoutMs ?? 90000
 // Fast path: how long a call waits for catalogs BEFORE it knows its server.
@@ -121,7 +226,13 @@ const allEntries = () => [...conns.values()].flatMap((c) => [...c.catalog.values
 const sig = (schema) => {
   const props = schema?.properties ?? {}
   const req = new Set(schema?.required ?? [])
-  return Object.entries(props).map(([k, v]) => k + (req.has(k) ? '' : '?') + ':' + (v?.type ?? (v?.enum ? 'enum' : v?.anyOf ? 'anyOf' : 'any'))).join(', ')
+  const keys = Object.keys(props)
+  const head = keys.filter((k) => req.has(k))
+  const rest = keys.filter((k) => !req.has(k))
+  const shown = head.concat(rest.slice(0, Math.max(0, 6 - head.length)))
+  const parts = shown.map((k) => k + (req.has(k) ? '' : '?') + ':' + (props[k]?.type ?? (props[k]?.enum ? 'enum' : props[k]?.anyOf ? 'anyOf' : 'any')))
+  const more = keys.length - shown.length
+  return parts.join(', ') + (more > 0 ? ', +' + more : '')
 }
 const short = (t, w) => (t.length <= w ? t : t.slice(0, w - 1) + '…')
 const norm = (s) => String(s).replace(/^mcp__/, '').replace(/\./g, '__')
@@ -246,6 +357,11 @@ const TOOLS = [
   },
 ]
 
+// 工具面开关：servers.json 的 hub.<工具名> === false ⇒ 该工具不出现在 tools/list、调用直接拒。
+// ⚠ 改一次 tools/list = 一次全价 cache miss（SKILL §7）；只在某个入口确实不要时才用。
+const TOOLS_OFF = new Set(TOOLS.filter((t) => HUB[t.name] === false).map((t) => t.name))
+const TOOLS_ON = TOOLS.filter((t) => !TOOLS_OFF.has(t.name))
+
 async function catalogText(a) {
   const servers = await waitAll(PRE_RESOLVE_WAIT_MS)
   const q = String(a.query ?? '').trim().toLowerCase()
@@ -274,14 +390,46 @@ async function catalogText(a) {
       hits.push(e)
     }
   }
+  // 别名：查询词命中别名键 → 该键下的工具【无条件提到最前】（顺序=别名表顺序）
+  const aliasOrder = []
+  for (const [k, refs] of Object.entries(ALIAS)) {
+    if (!Array.isArray(refs)) continue
+    if (q.indexOf(String(k).toLowerCase()) < 0) continue
+    for (const r of refs) { const e = resolveTool(String(r)); if (e && !aliasOrder.includes(e)) aliasOrder.push(e) }
+  }
+  if (aliasOrder.length) {
+    const rest = hits.filter((e) => !aliasOrder.includes(e))
+    hits.length = 0
+    for (const e of aliasOrder) hits.push(e)
+    for (const e of rest) hits.push(e)
+  }
   if (!hits.length) return 'No tool matched "' + a.query + '". Call catalog with no arguments for the server overview.'
-  const shown = hits.slice(0, limit)
-  return hits.length + ' match(es):\n'
-    + shown.map((e) => e.server + '.' + e.tool + '(' + sig(e.schema) + ') — ' + short(e.description, DESC_WIDTH)).join('\n')
+  const shown = []
+  let used = 0
+  for (const e of hits.slice(0, limit)) {
+    const line = e.server + '.' + e.tool + '(' + sig(e.schema) + ') — ' + short(displayDesc(e), DESC_WIDTH)
+    const b = Buffer.byteLength(line) + 1
+    if (shown.length && used + b > CATALOG_BUDGET) break
+    used += b; shown.push({ e, line })
+  }
+  return hits.length + ' match(es)' + (shown.length < Math.min(hits.length, limit) ? '（输出已按 ' + CATALOG_BUDGET + ' B 预算截断）' : '') + ':\n'
+    + shown.map((x) => x.line).join('\n')
     + (hits.length > shown.length ? '\n… ' + (hits.length - shown.length) + ' more; narrow the query or raise limit.' : '')
 }
 
 async function describeText(a) {
+  // 支持 describe({tool:"server.tool#op:wire"}) 只取某一章
+  const rawRef = String(a.tool ?? '')
+  const hash = rawRef.lastIndexOf('#')
+  if (hash > 0) {
+    const base = resolveTool(rawRef.slice(0, hash)) ?? await resolveWithWait(rawRef.slice(0, hash))
+    if (base) {
+      const id = rawRef.slice(hash + 1)
+      const body = sectionText(base, id)
+      if (body) return body + '\n\n' + sectionIndex(base)
+      return 'no section "' + id + '" for ' + base.server + '.' + base.tool + '\n' + sectionIndex(base)
+    }
+  }
   let e = resolveTool(a.tool)
   if (!e) await waitAll(PRE_RESOLVE_WAIT_MS)
   if (!e && [...conns.values()].some((c) => !c.connected && !c.error)) {
@@ -289,7 +437,9 @@ async function describeText(a) {
     e = resolveTool(a.tool)
   }
   if (!e) return 'Unknown tool "' + a.tool + '". Call catalog first.'
-  return e.server + '.' + e.tool + '\n\n' + (e.description || '(no description)') + '\n\nparameters:\n' + JSON.stringify(e.schema, null, 2)
+  const idx = sectionIndex(e)
+  return noteBlock(e) + (noteBlock(e) ? '\n\n' : '') + e.server + '.' + e.tool + '\n\n' + (e.description || '(no description)')
+    + (idx ? '\n\n' + idx : '') + '\n\nparameters:\n' + JSON.stringify(e.schema, null, 2)
 }
 
 // ---- B 试验：已装载集合 + 变更标志 ----
@@ -323,11 +473,117 @@ const notifyListChanged = function () {
 // ---- hub: 索引 + 按需全量声明（聚合器目标不变，按工具粒度付费） ----
 const hubOneLine = (e) => {
   const req = (e.schema?.required ?? []).join(',')
-  return e.server + '.' + e.tool + '(' + req + ') — ' + short(String(e.description ?? '').replace(/\s+/g, ' '), HUB_LINE)
+  return e.server + '.' + e.tool + '(' + req + ') — ' + short(String(displayDesc(e)).replace(/\s+/g, ' '), HUB_LINE)
 }
-const hubFull = (e) => e.server + '.' + e.tool
+// declBody = 工具名 + 描述 + schema（不含判据块）：回吐的 ④ 步用它，避免判据被 ② 和 ④ 各带一遍
+const declBody = (e) => e.server + '.' + e.tool
   + '\n' + String(e.description ?? '(no description)')
   + '\n\nparameters:\n' + JSON.stringify(e.schema ?? { type: 'object', properties: {} }, null, 2)
+const hubFull = (e) => noteBlock(e) + (noteBlock(e) ? '\n' : '') + declBody(e)
+
+// ---- echo：会话内每工具首次调用时回吐声明（DSH 与 Codex 各一份桶）----
+const ECHO_SEEN = new Map()
+const echoBag = function (sid) {
+  const k = sidOf(sid)
+  let s = ECHO_SEEN.get(k)
+  if (!s) { s = new Set(); ECHO_SEEN.set(k, s); if (ECHO_SEEN.size > 16) { const oldest = ECHO_SEEN.keys().next().value; if (oldest !== k) ECHO_SEEN.delete(oldest) } }
+  return s
+}
+const clip = function (s, n) { s = String(s ?? ''); return s.length <= n ? s : s.slice(0, n - 1) + '…' }
+const clipBytes = function (s, max) {   // 预算按 UTF-8 字节（中文 3 B/字，别用字符数糊弄）
+  s = String(s ?? '')
+  if (Buffer.byteLength(s) <= max) return s
+  let lo = 0, hi = s.length
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (Buffer.byteLength(s.slice(0, mid)) <= max - 3) lo = mid; else hi = mid - 1 }
+  return s.slice(0, lo) + '…'
+}
+const flat = function (s) { return String(s ?? '').replace(/\s+/g, ' ').trim() }
+// brief：作用（description 全文）+ 使用方法要点（必填参数名 / enum / 有单位或格式说明的参数）
+const briefDecl = function (e, opts) {
+  const sch = e.schema ?? {}
+  const props = sch.properties ?? {}
+  const req = Array.isArray(sch.required) ? sch.required : []
+  const lines = ((opts && opts.noNote) || !noteBlock(e) ? [] : [noteBlock(e), '']).concat(['[说明书] ' + e.server + '.' + e.tool + ' — ' + clip(flat(e.description || '(no description)'), 900)])
+  lines.push('必填: ' + (req.length ? req.join(', ') : '(无)'))
+  const detail = Object.keys(props).filter((k) => req.includes(k) || props[k]?.enum || props[k]?.description).slice(0, 8)
+  for (const k of detail) {
+    const pr = props[k] ?? {}
+    const bits = [pr.type ?? '?'].concat(pr.enum ? ['enum: ' + pr.enum.join('/')] : [])
+    lines.push('  - ' + k + ' (' + bits.join(', ') + ')' + (pr.description ? ': ' + clip(flat(pr.description), 140) : ''))
+  }
+  if ((sch.additionalProperties === false)) lines.push('  不接受未知参数。')
+  lines.push('完整 schema: describe({tool:"' + e.server + '.' + e.tool + '"})')
+  return clipBytes(lines.join('\n'), ECHO_BUDGET)
+}
+const fullDecl = function (e) { return clipBytes(hubFull(e), ECHO_BUDGET) }
+const renderDecl = function (e, opts) {
+  if (opts && opts.noNote) return ECHO_MODE === 'brief' ? briefDecl(e, opts) : clipBytes(declBody(e), ECHO_BUDGET)
+  return ECHO_MODE === 'brief' ? briefDecl(e) : fullDecl(e)
+}
+// 返回要回吐的文本（不重复回吐时返回 ''）；isError 情形强制回吐一次全量
+const takeEcho = function (sid, e, opts) {
+  if (!ECHO_ON && !(opts && opts.force)) return ''
+  const bag = echoBag(sid)
+  const ref = e.server + '.' + e.tool
+  const force = !!(opts && opts.force) && !bag.has(ref + '#errorecho')
+  const keys = []
+  const parts = []
+  // ① 必带段（每会话每工具一次；force 时无脑带）
+  if (force || !bag.has(ref + '#basic')) { parts.push(basicDecl(e)); keys.push(ref + '#basic') }
+  // ② 判据块（每会话每工具一次）
+  const nb = noteBlock(e)
+  if (nb && (force || !bag.has(ref + '#note'))) { parts.push(nb); keys.push(ref + '#note') }
+  // ③ 按用途选章（每章只来一次；force 时全给）
+  const man = MANUALS[ref]
+  let secs = pickSections(e, opts?.args, opts?.intent, opts?.sections)
+  if (force && man) {                       // 报错时兜底：选中的章 + overview + pitfalls（不再无脑全给）
+    secs = ['overview', 'pitfalls'].concat(secs).filter((id, i, a) => man[id] && a.indexOf(id) === i)
+  }
+  for (const id of secs) {
+    if (!force && bag.has(ref + '#' + id)) continue
+    const t = sectionText(e, id); if (!t) continue
+    parts.push(t); keys.push(ref + '#' + id)
+  }
+  // ④ echo=full：无章节的工具附整份声明；有章节的工具只给指针（章节才是它的说明书）
+  if (ECHO_MODE === 'full' && (force || !bag.has(ref + '#full'))) {
+    if (MANUALS[ref]) { parts.push('完整 schema: describe({tool:"' + ref + '"})'); keys.push(ref + '#full') }
+    else { parts.push(renderDecl(e, { noNote: true })); keys.push(ref + '#full') }
+  }
+  if (!parts.length) return ''
+  let txt = parts.join('\n\n')
+  const budget = opts && opts.budget
+  if (budget) {
+    if (budget.left <= 0) return ''
+    const tb = Buffer.byteLength(txt)
+    if (tb + 1 > budget.left) txt = clipBytes(txt, Math.max(200, budget.left))
+    budget.left -= Buffer.byteLength(txt) + 1
+  }
+  if (force) bag.add(ref + '#errorecho')   // 报错全量只回吐一次
+  for (const k of keys) bag.add(k)
+  return txt
+}
+// ---- 参数预检：缺必填 / 未知键(schema 明确禁止时) / enum 越界 → 不派发 ----
+const checkArgs = function (e, args) {
+  const sch = e.schema
+  if (!sch || sch.type !== 'object' || !sch.properties) return null
+  const props = sch.properties
+  const req = Array.isArray(sch.required) ? sch.required : []
+  const a = (args && typeof args === 'object' && !Array.isArray(args)) ? args : {}
+  const missing = req.filter((k) => (a[k] === undefined || a[k] === null) && !(props[k] && Object.prototype.hasOwnProperty.call(props[k], 'default')))
+  const unknown = sch.additionalProperties === false ? Object.keys(a).filter((k) => !(k in props)) : []
+  const badEnum = Object.keys(a).filter((k) => props[k]?.enum && a[k] !== undefined && !props[k].enum.includes(a[k]))
+    .map((k) => k + '=' + JSON.stringify(a[k]) + ' 不在 enum [' + props[k].enum.join('/') + ']')
+  if (!missing.length && !unknown.length && !badEnum.length) return null
+  return { missing, unknown, badEnum }
+}
+const preflightMsg = function (e, r) {
+  const why = []
+  if (r.missing.length) why.push('缺少必填参数: ' + r.missing.join(', '))
+  if (r.unknown.length) why.push('未知参数(该工具 schema 不接受): ' + r.unknown.join(', '))
+  for (const b of r.badEnum) why.push(b)
+  return '[参数校验失败，未派发] ' + e.server + '.' + e.tool + ' — ' + why.join('；')
+    + '\n修正参数后重发；下面是该工具的声明：\n\n' + renderDecl(e)
+}
 
 async function hubText(a, sid) {
   const bag = sbag(sid)
@@ -382,15 +638,25 @@ async function hubText(a, sid) {
     else out.push('\nnext: load({tools:["' + pool[0].server + '.<tool>"]}) for one full declaration, or load({server:"' + pool[0].server + '", full:true}).')
   }
 
-  const seen = new Set(), decls = [], skipped = []
+  const seen = new Set(), decls = [], skipped = [], oversized = []
   let used = 0
   for (const e of picked) {
     const k = e.server + '.' + e.tool
     if (seen.has(k)) continue
     seen.add(k)
     const d = hubFull(e)
-    if (used + d.length > HUB_FULL_BUDGET) { skipped.push(k); continue }
-    used += d.length
+    const db = Buffer.byteLength(d)              // 预算按 UTF-8 字节（中文 3 B/字），与 clipBytes 同口径
+    if (db > HUB_FULL_BUDGET) {                  // 单件就超预算：裁一份给出来；直接跳过会让它永远装不进来
+      const cut = clipBytes(d, HUB_FULL_BUDGET - 200)
+      const cb = Buffer.byteLength(cut)
+      if (used + cb > HUB_FULL_BUDGET) { skipped.push(k); continue }
+      used += cb
+      decls.push(cut)
+      oversized.push(k)
+      continue
+    }
+    if (used + db > HUB_FULL_BUDGET) { skipped.push(k); continue }
+    used += db
     decls.push(d)
   }
   // 装载会改提示前缀 → 整段 cache miss（实测一次 ≈19.5 万 tokens 全价）。所以"读说明书"（默认）与"装进工具面"（promote:true）必须分开。
@@ -410,6 +676,7 @@ async function hubText(a, sid) {
   if (wantPresets.length) out.push('\n[preset] ' + wantPresets.filter((p) => PRESETS[p]).length + ' applied (' + wantPresets.filter((p) => PRESETS[p]).join(', ') + '), tools expanded: ' + wantTools.length
     + (unknownPresets.length ? ' | unknown preset(s): ' + unknownPresets.join(', ') + ' (available: ' + (Object.keys(PRESETS).join(', ') || 'none') + ')' : ''))
   if (missing.length) out.push('\nnot found: ' + missing.join(', '))
+  if (oversized.length) out.push('\noversized (truncated to fit; full view: describe({tool:"<ref>"})): ' + oversized.join(', '))
   if (skipped.length) out.push('\nover budget, not loaded (call again in batches): ' + skipped.join(', '))
   return out.length ? out.join('\n') : '(nothing to load)'
 }
@@ -453,14 +720,29 @@ const isPreSendFailure = (err) => /^NOT_?CONNECTED$/i.test(String(err?.code ?? '
 const looksDisconnected = (err) => !isRpcError(err)
   && /Not connected|closed|disconnect|EPIPE|ECONNRESET|socket hang up|transport/i.test(String(err?.message ?? err))
 
-async function callTool(a) {
+async function callTool(a, sid, budget) {
   let e = await resolveWithWait(a.tool)
   if (!e) return { content: [text('Unknown tool "' + a.tool + '". Call catalog first.')], isError: true }
+  // 聚合器侧保留参数：_intent（这次要干什么）/ _sections（显式要哪几章），派发前剥掉，不进下游
+  const rawArgs = (a.arguments && typeof a.arguments === 'object' && !Array.isArray(a.arguments)) ? { ...a.arguments } : {}
+  const intentTag = rawArgs._intent, wantSections = rawArgs._sections
+  delete rawArgs._intent; delete rawArgs._sections
+  const bad = PREFLIGHT ? checkArgs(e, rawArgs) : null
+  if (bad) {
+    echoBag(sid).add(e.server + '.' + e.tool)   // 预检已附声明，别在下一次重复
+    let msg = preflightMsg(e, bad)
+    if (budget) {                               // batch 内：预检回吐也要吃整批预算
+      if (budget.left <= 0) msg = msg.split('\n修正参数后重发')[0]
+      else msg = clipBytes(msg, Math.max(200, budget.left))
+      budget.left -= Buffer.byteLength(msg) + 1
+    }
+    return { content: [text(msg)], isError: true }
+  }
   let c = await waitOne(e.server)
   // The SDK's own per-request timeout aborts the request (and tells the downstream to
   // cancel); racing our own timer left the request in flight, blocking serial servers.
   const invoke = () => c.client.callTool(
-    { name: e.tool, arguments: a.arguments ?? {} },
+    { name: e.tool, arguments: rawArgs },
     { timeout: c.spec?.callTimeoutMs ?? CALL_TIMEOUT_MS },
   )
   let res
@@ -487,10 +769,14 @@ async function callTool(a) {
   const out = { content: (res?.content?.length ? res.content : [text('(no content)')]) }
   if (res?.structuredContent !== undefined) out.structuredContent = res.structuredContent
   if (res?.isError) out.isError = true
+  // 声明随结果到场：会话内每工具首次调用（或下游报错）时前置，之后不再带
+  const echoed = takeEcho(sid, e, { force: !!res?.isError, budget, args: rawArgs, intent: intentTag, sections: wantSections })
+  if (echoed) out.content = [text(echoed)].concat(out.content)
   return out
 }
 
-async function batchTools(a) {
+async function batchTools(a, sid) {
+  const echoBudget = { left: ECHO_BATCH_BUDGET }
   await waitAll(PRE_RESOLVE_WAIT_MS)
   const calls = Array.isArray(a.calls) ? a.calls.filter((c) => c && typeof c === 'object') : []
   if (!calls.length) return { content: [text('batch: pass calls:[{tool, arguments, label?}]')], isError: true }
@@ -536,7 +822,7 @@ async function batchTools(a) {
       const { call, entry, err } = resolved[i]
       if (!entry) { results[i] = { content: [text('Unknown tool "' + call.tool + '": ' + (err ?? 'call catalog first'))] }; continue }
       log('batch #' + (i + 1) + ' ' + entry.server + ' start ' + stamp())
-      try { results[i] = await callTool({ tool: call.tool, arguments: call.arguments ?? {} }) }
+      try { results[i] = await callTool({ tool: call.tool, arguments: call.arguments ?? {} }, sid, echoBudget) }
       catch (e) { results[i] = { content: [text('ERROR: ' + String(e?.message ?? e))] } }
       log('batch #' + (i + 1) + ' ' + entry.server + ' end   ' + stamp())
     }
@@ -616,13 +902,13 @@ const PROTOCOL_VERSIONS = new Set(['2024-11-05', '2025-03-26', '2025-06-18'])
 async function handleMsg(msg, sid) {
   const { id, method, params } = msg
   // 每次客户端建立会话时清空已装载集合：避免长跑进程里提升的工具无限累积（跨会话共享的聚合器必须这样隔离）
-  if (method === 'initialize') { LOADED_SESSIONS.delete(sidOf(sid)); HUB_CHANGED.delete(sidOf(sid)) }
+  if (method === 'initialize') { LOADED_SESSIONS.delete(sidOf(sid)); HUB_CHANGED.delete(sidOf(sid)); ECHO_SEEN.delete(sidOf(sid)) }
   if (method === 'initialize') return { jsonrpc: '2.0', id, result: {
     protocolVersion: PROTOCOL_VERSIONS.has(params?.protocolVersion) ? params.protocolVersion : '2025-06-18',
     capabilities: { tools: { listChanged: true }, resources: { subscribe: false, listChanged: false } },
     serverInfo: { name: 'mcp-aggregator', version: '1.0.0' },
   } }
-  if (method === 'tools/list') return { jsonrpc: '2.0', id, result: { tools: TOOLS.concat([...sbag(sid).values()].map((e) => ({ name: e.tool, description: e.description, inputSchema: e.schema }))) } }
+  if (method === 'tools/list') return { jsonrpc: '2.0', id, result: { tools: TOOLS_ON.concat([...sbag(sid).values()].map((e) => ({ name: e.tool, description: e.description, inputSchema: e.schema }))) } }
   if (method === 'ping') return { jsonrpc: '2.0', id, result: {} }
   if (method === 'resources/list') {
     try { return { jsonrpc: '2.0', id, result: { resources: await resourcesList() } } }
@@ -638,13 +924,14 @@ async function handleMsg(msg, sid) {
   }
   if (method === 'tools/call') {
     const name = params?.name, a = params?.arguments ?? {}
+    if (TOOLS_OFF.has(name)) return { jsonrpc: '2.0', id, result: { content: [text('Unknown aggregator tool "' + name + '".')], isError: true } }
     try {
       if (name === 'catalog') return { jsonrpc: '2.0', id, result: { content: [text(await catalogText(a))] } }
       if (name === 'describe') return { jsonrpc: '2.0', id, result: { content: [text(await describeText(a))] } }
       if (name === HUB_NAME) return { jsonrpc: '2.0', id, result: { content: [text(await hubText(a, sid))] } }
-      if (sbag(sid).has(name)) return { jsonrpc: '2.0', id, result: await callTool({ tool: sbag(sid).get(name).server + '.' + name, arguments: a }) }
-      if (name === 'call') return { jsonrpc: '2.0', id, result: await callTool(a) }
-      if (name === 'batch') return { jsonrpc: '2.0', id, result: await batchTools(a) }
+      if (sbag(sid).has(name)) return { jsonrpc: '2.0', id, result: await callTool({ tool: sbag(sid).get(name).server + '.' + name, arguments: a }, sid) }
+      if (name === 'call') return { jsonrpc: '2.0', id, result: await callTool(a, sid) }
+      if (name === 'batch') return { jsonrpc: '2.0', id, result: await batchTools(a, sid) }
       return { jsonrpc: '2.0', id, result: { content: [text('Unknown aggregator tool "' + name + '".')], isError: true } }
     } catch (err) {
       return { jsonrpc: '2.0', id, result: { content: [text('ERROR: ' + String(err?.message ?? err))], isError: true } }

@@ -1,0 +1,3393 @@
+{
+  "_note": "catalog 摘要：fn=功能浓缩，when=使用场景（含何时别用→改用谁）。长度按功能多少浮动（36–160 字符）。",
+  "summary": {
+    "lceda-tools.lceda_batch": {
+      "fn": "原理图批量写入：放件/导线/网名/电源标号/文本/图形/属性/移动旋转/删除，九类 op 混装，≤100 op/次，含吸合守卫与网表比对",
+      "when": "一次连写多个对象时；单步操作改用 lceda_execute"
+    },
+    "lceda-tools.lceda_execute": {
+      "fn": "在 EDA 里执行一段 JS 函数体（可 await/循环，顶层 return 取结果），一条代码跑多步读写",
+      "when": "需要自定义逻辑/批量循环时；标准批量放件连线改用 lceda_batch"
+    },
+    "lceda-tools.lceda_pins": {
+      "fn": "批量并行读已在图器件的引脚坐标+朝向（num/name/x/y/rot/dir/type）",
+      "when": "连网、算导线端点前；器件未落图要预算坐标改用 lceda_pinmap"
+    },
+    "lceda-tools.lceda_pinmap": {
+      "fn": "放件前预算引脚绝对坐标/相对偏移/bbox（内部放置→读脚→立即删除，文档不留对象）",
+      "when": "先量尺寸再决定摆位；已在图上的读脚改用 lceda_pins"
+    },
+    "lceda-tools.lceda_netcheck": {
+      "fn": "网表基线：snapshot 存 Protel2 基线、check/diff 比新增/消失/改动的网与单脚网、expect 断言规模、list/prune 管基线",
+      "when": "改完原理图验收时；整页几何缺陷改用 lceda_audit"
+    },
+    "lceda-tools.lceda_audit": {
+      "fn": "只读整页体检：重复器件/位号/导线、引脚重合、悬空端点、非网格点、器件相交、文本互压、网名与网表不符 + 未连引脚",
+      "when": "交付前必跑；只比网表差异改用 lceda_netcheck"
+    },
+    "lceda-tools.lceda_status": {
+      "fn": "体检桥地址、EDA online/half、当前工程、三种库 uuid、打开的 tabs",
+      "when": "开工先确认环境；PCB 内容状态改用 jlceda.pcb_get_state"
+    },
+    "lceda-tools.lceda_document_source": {
+      "fn": "原理图文档源事务接口：count/read/backup/restore/drop 行级源，专治官方删不掉的属性图元",
+      "when": "要真正删改网络标签这类属性图元；纯文本对象改用 lceda_text"
+    },
+    "lceda-tools.lceda_text": {
+      "fn": "文本对象可靠 CRUD（list/create/set/move/delete），内置墓碑配方治「删了又活」",
+      "when": "加注释/改删文本；网络标签属属性图元改用 lceda_document_source"
+    },
+    "lceda-tools.lceda_document_save": {
+      "fn": "保存当前页并回读自证（save→读源→可选关页重开比对器件数）",
+      "when": "改完确认落库；save() 返回 true 不算数，必须 verify"
+    },
+    "lceda-tools.lceda_screenshot": {
+      "fn": "按 API 截 EDA 画布，单页或多页一次抓（target 与 doctype 过滤）",
+      "when": "整页/多页概览；只要 PCB 一张改用 jlceda.pcb_screenshot；看细节改用 lceda_zoom"
+    },
+    "lceda-tools.lceda_zoom": {
+      "fn": "按位号取引脚包围盒裁剪并放大回图（省掉截图→手算 crop→magick 三步）",
+      "when": "要看清间距/丝印/参数文字（别靠整页低清预览下结论）"
+    },
+    "lceda-tools.lceda_symbol_create": {
+      "fn": "建库符号并落库：断言空符号→画引脚→画框→逐脚设 Pin Type→save→回读 PIN/RECT/ATTR",
+      "when": "新建原理图符号；只建器件外壳关联符号封装改用 lceda_device_create"
+    },
+    "lceda-tools.lceda_device_create": {
+      "fn": "建器件并关联符号/封装/3D，返回 uuid 并回读 association 三件套",
+      "when": "符号封装都齐了要合成器件；只画符号改用 lceda_symbol_create"
+    },
+    "lceda-tools.lceda_project_open": {
+      "fn": "打开云端工程并激活首页，回读器件数",
+      "when": "切工程；HALF_OFFLINE 下工程级 API 不可用，必须人工在 GUI 打开"
+    },
+    "jlceda.pcb_execute_code": {
+      "fn": "在立创 PCB 编辑器里执行官方扩展 API（eda.*）代码",
+      "when": "PCB 侧要自定义多步读写时；原理图侧 JS 改用 lceda_execute"
+    },
+    "jlceda.pcb_run_drc": {
+      "fn": "跑 PCB 设计规则检查",
+      "when": "布线/自动布线之后复查；原理图 ERC 不在这里"
+    },
+    "jlceda.pcb_screenshot": {
+      "fn": "截当前 PCB 编辑器一张图",
+      "when": "只要 PCB 现况图；多页/其它页改用 lceda_screenshot"
+    },
+    "jlceda.pcb_get_tracks": {
+      "fn": "查走线段，可按 net/layer 过滤",
+      "when": "看某网络怎么走的；判哪些网络没布线改用 pcb_net_connectivity_check"
+    },
+    "jlceda.pcb_net_connectivity_check": {
+      "fn": "全局判未布线网络（按焊盘数/走线段数），可传 nets 限定",
+      "when": "布线收尾盘点时；查具体线段改用 pcb_get_tracks"
+    },
+    "jlceda.pcb_get_state": {
+      "fn": "PCB 内容快照：元件、网络、板框等",
+      "when": "要整体盘面状态时；桥/工程/库状态改用 lceda_status"
+    },
+    "jlceda.pcb_route_track": {
+      "fn": "按 net+points+layer+width 画走线（坐标 mil）",
+      "when": "精确控制单条路径时；整批布线改用 pcb_auto_route_nets"
+    },
+    "jlceda.pcb_create_via": {
+      "fn": "在 (x,y) 打过孔（net/drill/diameter，坐标 mil）",
+      "when": "跨层换层时；过孔必须挂 net，否则 DRC 报孤立孔"
+    },
+    "jlceda.pcb_batch_move": {
+      "fn": "批量移动多个元件（moves 数组，一次事务，失败整批不生效）",
+      "when": "布局整体重排、坐标已算好时"
+    },
+    "jlceda.pcb_open_document": {
+      "fn": "按 uuid 切换当前文档（原理图或 PCB）",
+      "when": "在多文档间跳转时；打开工程改用 lceda_project_open"
+    },
+    "jlceda.sch_get_netlist": {
+      "fn": "导出原理图网表（只认 Protel2 格式）",
+      "when": "要和基线/外部网表对比时；基线比对抗改用 lceda_netcheck"
+    },
+    "jlceda.pcb_component_clearance_check": {
+      "fn": "检查所有元件对最小间距，标记低于阈值的违规对（minClearance 默认 20 mil）",
+      "when": "查元件贴太近时；完整规则检查改用 pcb_run_drc"
+    },
+    "jlceda.pcb_auto_route_nets": {
+      "fn": "自动布线：单层障碍规避（默认）或两层 L 型（useVias），可传 nets 限定",
+      "when": "整板/整批网络要快速布通时；布完必须 pcb_run_drc 复查"
+    },
+    "pdf.read_pdf": {
+      "fn": "读本地 PDF 页，返回文字 + 页面图像（@@PB_META / @@PDF_TEXT p=N / @@PDF_IMAGE p=N）",
+      "when": "读数据手册/图纸；精确版式、参数名、双栏表改用 pdftotext -layout"
+    },
+    "freecad.execute_code_headless": {
+      "fn": "独立 freecadcmd 进程跑 Python，适合可能崩/阻塞的 OCCT 几何（螺纹/loft/扫掠）",
+      "when": "几何复杂怕搞坏 GUI 时；长跑后台计算改用 execute_code_async"
+    },
+    "freecad.execute_code_async": {
+      "fn": "长跑后台计算，先不等结果返回，需自行轮询状态",
+      "when": "几十分钟级的建模/导出任务；会崩或阻塞的几何改用 headless"
+    },
+    "dshlink.status": {
+      "fn": "看 DSH Link 通道健康：守护进程、手机连接、设备信息",
+      "when": "任何手机操作前先跑一次"
+    },
+    "dshlink.push": {
+      "fn": "把电脑文件推到手机「下载」目录（无需 adb/存储权限）",
+      "when": "发文件到手机时；回读手机文件改用 dshlink.files"
+    },
+    "dshlink.files": {
+      "fn": "手机「下载」目录 list/pull（作用域存储：只看得到本 app 写的条目）",
+      "when": "确认推送结果或回读时"
+    },
+    "kicad.export_gerber": {
+      "fn": "把 .kicad_pcb 导成 Gerber+钻孔（kicad-cli），报实际产出文件",
+      "when": "出板打样时；导出前先存盘，导到全新目录再核 artifact"
+    },
+    "kicad.render_pcb": {
+      "fn": "把 PCB 渲染成 PNG 3D 图（footprint 需已挂 3D 模型）",
+      "when": "看外观/做展示；渲染图不能用来量尺寸"
+    },
+    "konnect.load_toolset": {
+      "fn": "按名字加载一套 KiCAD 工具集，加载后其工具才出现在 tools/list",
+      "when": "要用 konnect 其它工具前必须先加载；查现状用 get_active_toolsets"
+    },
+    "konnect.open_project": {
+      "fn": "列/检查 KiCAD GUI 里已打开的板（IPC）",
+      "when": "确认板子是否已在编辑器打开；它不负责打开文件"
+    },
+    "lceda_batch": {
+      "fn": "原理图批量写入：放件/导线/网名/电源标号/文本/图形/属性/移动旋转/删除，九类 op 混装，≤100 op/次，含吸合守卫与网表比对",
+      "when": "一次连写多个对象时；单步操作改用 lceda_execute"
+    },
+    "lceda_execute": {
+      "fn": "在 EDA 里执行一段 JS 函数体（可 await/循环，顶层 return 取结果），一条代码跑多步读写",
+      "when": "需要自定义逻辑/批量循环时；标准批量放件连线改用 lceda_batch"
+    },
+    "lceda_pins": {
+      "fn": "批量并行读已在图器件的引脚坐标+朝向（num/name/x/y/rot/dir/type）",
+      "when": "连网、算导线端点前；器件未落图要预算坐标改用 lceda_pinmap"
+    },
+    "lceda_pinmap": {
+      "fn": "放件前预算引脚绝对坐标/相对偏移/bbox（内部放置→读脚→立即删除，文档不留对象）",
+      "when": "先量尺寸再决定摆位时；已在图上的读脚改用 lceda_pins"
+    },
+    "lceda_orient": {
+      "fn": "只读朝向总表：器件 rot/mirror、每脚坐标+名+电气类型+朝向、端口/电源标志/导线走向/网名对齐，可按 designators/ids/nets 过滤",
+      "when": "连线或写网名前先看这张表（别靠「左 180 右 0」人肉推）；只读，可与其它只读工具合批"
+    },
+    "lceda_layout": {
+      "fn": "只读画布视图：每器件 bbox（按引脚外沿）、所属模块框、重叠/出框告警、可选 ASCII 网格",
+      "when": "布局调整的「看图→改→再看」闭环；细看某颗用 lceda_zoom"
+    },
+    "lceda_audit": {
+      "fn": "只读整页体检：重复器件/位号/导线、引脚重合、悬空端点、非网格点、器件相交、文本互压、网名与网表不符 + 未连引脚",
+      "when": "交付前必跑；只比网表差异改用 lceda_netcheck"
+    },
+    "lceda_netcheck": {
+      "fn": "网表基线：snapshot 存 Protel2 基线、check/diff 比新增/消失/改动的网与单脚网、expect 断言规模、list/prune 管基线",
+      "when": "改完原理图验收时；整页几何缺陷改用 lceda_audit"
+    },
+    "lceda_status": {
+      "fn": "体检桥地址、EDA online/half、当前工程、三种库 uuid、打开的 tabs",
+      "when": "开工先确认环境；PCB 内容状态改用 jlceda.pcb_get_state"
+    },
+    "lceda_probe": {
+      "fn": "读某个 eda.* 接口的函数签名/类型（String(fn)）",
+      "when": "写 lceda_execute 代码前确认参数，替代盲试"
+    },
+    "lceda_prefetch": {
+      "fn": "只读预取并体检一批 LCSC 编号：解析器件→取符号/封装源→判 ready/bad/slow（符号源 <20B 的 create 会永久挂起）",
+      "when": "批量放件前先筛掉坏件；80 件并发实测 1.16 s"
+    },
+    "lceda_screenshot": {
+      "fn": "按 API 截 EDA 画布，单页或多页一次抓（target=active|all|<tabId>，doctype 1 原理图 2 符号 3 PCB 4 封装）",
+      "when": "整页/多页概览；只要 PCB 一张改用 jlceda.pcb_screenshot；看局部细节改用 lceda_zoom"
+    },
+    "lceda_zoom": {
+      "fn": "按位号取引脚包围盒裁剪并放大回图（省掉截图→手算 crop→magick 三步）",
+      "when": "要看清间距/丝印/参数文字时（别靠整页低清预览下结论）"
+    },
+    "lceda_text": {
+      "fn": "文本对象可靠 CRUD（list/create/set/move/delete），内置墓碑配方治「删了又活」",
+      "when": "加注释/改文本/删文本；网络标签属属性图元改用 lceda_document_source"
+    },
+    "lceda_document_source": {
+      "fn": "原理图文档源事务接口：count/read/backup/restore/drop 行级源，专治官方删不掉的属性图元",
+      "when": "要真正删/改网络标签这类属性图元时；纯文本对象改用 lceda_text"
+    },
+    "lceda_document_save": {
+      "fn": "保存当前页并回读自证（save→读源→可选关页重开比对器件数）",
+      "when": "改完要确认落库时；save() 返回 true 不算数，必须 verify"
+    },
+    "lceda_symbol_create": {
+      "fn": "建库符号并落库：断言空符号→画引脚→画框→逐脚设 Pin Type→save→回读 PIN/RECT/ATTR（0.01 inch，pin 间距 10）",
+      "when": "新建原理图符号；只建器件外壳关联符号封装改用 lceda_device_create"
+    },
+    "lceda_symbol_inspect": {
+      "fn": "回读库符号：源字节数、PIN/RECT/ATTR 计数、逐脚 Number/Name/Type 与坐标",
+      "when": "验收符号或排错引脚类型时"
+    },
+    "lceda_footprint_create": {
+      "fn": "建封装并落库：create→换焊盘表→清骨架装饰→画本体丝印→回读（坐标 mil，默认写个人库）",
+      "when": "建新封装；按参数生成 QFN 焊盘改用 lceda_footprint_from_qfn_spec"
+    },
+    "lceda_footprint_from_qfn_spec": {
+      "fn": "按 pinCount/bodyMm/pitchMm 生成 QFN/VQFN 焊盘表并建封装（入参 mm、落库 mil，环半径自动撑到不重叠）",
+      "when": "建 QFN 类封装；非标封装改用 lceda_footprint_create 手给焊盘表"
+    },
+    "lceda_footprint_clone": {
+      "fn": "把已有封装的文档源克隆成新名字的新封装（改名 API 无效，只能复制内容）",
+      "when": "复制改库里的近似封装；跨库克隆必须给 templateLibraryUuid"
+    },
+    "lceda_footprint_paste": {
+      "fn": "按焊盘号改顶层钢网开窗（topPasteMask 设哨兵 -3937 = 不开窗），只认 editor 通路",
+      "when": "EP 分块前先关 1:1 开窗"
+    },
+    "lceda_footprint_inspect": {
+      "fn": "读封装：exists/名称/描述/库侧源字节数与 PAD·POLY 计数，能开编辑器时再给实时焊盘数",
+      "when": "查封装是否落库/清点图元"
+    },
+    "lceda_footprint_export_source": {
+      "fn": "读封装文档源（FOOTPRINT 行式文本）用于备份或当模板（优先库侧零副作用读取）",
+      "when": "备份封装源；库侧读不到才落回编辑器（会切走你的编辑器）"
+    },
+    "lceda_footprint_list": {
+      "fn": "列出库里的封装（支持关键字过滤）",
+      "when": "查库/选模板前先列一遍"
+    },
+    "lceda_footprint_delete": {
+      "fn": "删除封装并回读自证（返回 ok/del/stillListed）",
+      "when": "清理试建件；工程库句柄在 4.1.78 删不掉"
+    },
+    "lceda_device_create": {
+      "fn": "建器件并关联符号/封装/3D，返回 uuid 并回读 association 三件套",
+      "when": "符号和封装都齐了要合成器件；只画符号改用 lceda_symbol_create"
+    },
+    "lceda_model3d_import": {
+      "fn": "把本地 STEP 导入库成为 3D 模型条目，返回 uuid 与字节数",
+      "when": "给器件配 3D 时（STEP 已验，WRL 未验）"
+    },
+    "lceda_board_outline": {
+      "fn": "PCB 板框建/改/验（layer 11）：read 回读、set_rect 画矩形、set_polygon 画任意闭合、verify 导 Gerber 验几何",
+      "when": "要脚本化板框时（把「只能 GUI 画」变成可编程）"
+    },
+    "lceda_gerber_export": {
+      "fn": "制版文件导出：临时建 PCB→导指定层 Gerber（layers 默认 [1 铜,3 丝印,7 钢网]）→返回 zip base64/落盘，并自证删掉临时 PCB",
+      "when": "要出 Gerber 时；正式板出板仍以 KiCAD/manufacture 流程为准"
+    },
+    "lceda_project_list": {
+      "fn": "列云端工程（视图接口，按 teamUuid；不传会返空数组，不代表没工程）",
+      "when": "找工程 uuid 时"
+    },
+    "lceda_project_create": {
+      "fn": "新建云端工程并打开首个原理图页，用 getAllProjectsUuid 复核确实出现",
+      "when": "开新工程；friendlyName 中文可以，内部名限字母数字"
+    },
+    "lceda_project_open": {
+      "fn": "打开云端工程并激活首页，回读器件数",
+      "when": "切工程时；HALF_OFFLINE 下工程级 API 不可用，必须人工在 GUI 打开"
+    },
+    "lceda_project_move": {
+      "fn": "把云端工程移进文件夹（建文件夹→逐个挪→回读校验）",
+      "when": "整理工程目录；本版 deleteProject 挂起，移动是唯一可用手段"
+    },
+    "lceda_project_delete": {
+      "fn": "删云端工程（官方未实现，工具如实报错并给证据）",
+      "when": "别指望它——本版 API 已挂起"
+    },
+    "lceda-tools.lceda_orient": {
+      "fn": "只读朝向总表：器件 rot/mirror、每脚坐标+名+电气类型+朝向、端口/电源标志/导线走向/网名对齐，可按 designators/ids/nets 过滤",
+      "when": "连线或写网名前先看这张表（别靠「左180右0」人肉推）"
+    },
+    "lceda-tools.lceda_layout": {
+      "fn": "只读画布视图：每器件 bbox（按引脚外沿）、所属模块框、重叠/出框告警、可选 ASCII 网格",
+      "when": "布局「看图→改→再看」闭环；细看某颗用 lceda_zoom"
+    },
+    "lceda-tools.lceda_probe": {
+      "fn": "读某个 eda.* 接口的函数签名/类型（String(fn)）",
+      "when": "写 lceda_execute 代码前确认参数，替代盲试"
+    },
+    "lceda-tools.lceda_prefetch": {
+      "fn": "只读预取并体检一批 LCSC 编号：解析→取符号/封装源→判 ready/bad/slow（符号源 <20B 的 create 会永久挂起）",
+      "when": "批量放件前先筛掉坏件；80 件并发实测 1.16 s"
+    },
+    "lceda-tools.lceda_symbol_inspect": {
+      "fn": "回读库符号：源字节数、PIN/RECT/ATTR 计数、逐脚 Number/Name/Type 与坐标",
+      "when": "验收符号或排错引脚类型"
+    },
+    "lceda-tools.lceda_footprint_create": {
+      "fn": "建封装并落库：create→换焊盘表→清骨架装饰→画本体丝印→回读（坐标 mil，默认写个人库）",
+      "when": "建新封装；QFN 类改用 lceda_footprint_from_qfn_spec 按参数生成"
+    },
+    "lceda-tools.lceda_footprint_from_qfn_spec": {
+      "fn": "按 pinCount/bodyMm/pitchMm 生成 QFN/VQFN 焊盘表并建封装（入参 mm、落库 mil，环半径自动撑到不重叠）",
+      "when": "建 QFN 类封装；非标封装改用 lceda_footprint_create 手给焊盘表"
+    },
+    "lceda-tools.lceda_footprint_clone": {
+      "fn": "把已有封装的文档源克隆成新名字的新封装（改名 API 无效，只能复制内容）",
+      "when": "复制近似封装；跨库克隆必须给 templateLibraryUuid"
+    },
+    "lceda-tools.lceda_footprint_paste": {
+      "fn": "按焊盘号改顶层钢网开窗（topPasteMask 设哨兵 -3937 = 不开窗），只认 editor 通路",
+      "when": "EP 分块前先关掉 1:1 开窗"
+    },
+    "lceda-tools.lceda_footprint_inspect": {
+      "fn": "读封装：exists/名称/描述/库侧源字节数与 PAD·POLY 计数，能开编辑器时再给实时焊盘数",
+      "when": "查封装是否落库、清点图元"
+    },
+    "lceda-tools.lceda_footprint_export_source": {
+      "fn": "读封装文档源（FOOTPRINT 行式文本）用于备份或当模板，优先库侧零副作用读取",
+      "when": "备份封装源；库侧读不到才落回编辑器（会切走你的编辑器）"
+    },
+    "lceda-tools.lceda_footprint_list": {
+      "fn": "列出库里的封装（支持关键字过滤）",
+      "when": "查库/选模板前先列一遍"
+    },
+    "lceda-tools.lceda_footprint_delete": {
+      "fn": "删除封装并回读自证（返回 ok/del/stillListed）",
+      "when": "清理试建件；工程库句柄在 4.1.78 删不掉"
+    },
+    "lceda-tools.lceda_model3d_import": {
+      "fn": "把本地 STEP 导入库成为 3D 模型条目，返回 uuid 与字节数",
+      "when": "给器件配 3D 时（STEP 已验，WRL 未验）"
+    },
+    "lceda-tools.lceda_board_outline": {
+      "fn": "PCB 板框建/改/验（layer 11）：read 回读、set_rect 画矩形、set_polygon 画任意闭合、verify 导 Gerber 验几何",
+      "when": "要脚本化板框时（把「只能 GUI 画」变成可编程）"
+    },
+    "lceda-tools.lceda_gerber_export": {
+      "fn": "制版文件导出：临时建 PCB→导指定层 Gerber（默认 [1 铜,3 丝印,7 钢网]）→返回 zip base64/落盘并自证删掉临时 PCB",
+      "when": "要快速出 Gerber；正式出板仍以 KiCAD 制造流程为准"
+    },
+    "lceda-tools.lceda_project_list": {
+      "fn": "列云端工程（视图接口，按 teamUuid；不传会返空数组，不代表没工程）",
+      "when": "找工程 uuid 时"
+    },
+    "lceda-tools.lceda_project_create": {
+      "fn": "新建云端工程并打开首个原理图页，用 getAllProjectsUuid 复核确实出现",
+      "when": "开新工程；friendlyName 中文可以，内部名限字母数字"
+    },
+    "lceda-tools.lceda_project_move": {
+      "fn": "把云端工程移进文件夹（建文件夹→逐个挪→回读校验）",
+      "when": "整理工程目录；本版 deleteProject 挂起，移动是唯一可用手段"
+    },
+    "lceda-tools.lceda_project_delete": {
+      "fn": "删云端工程（官方未实现，工具如实报错并给证据）",
+      "when": "别指望它——本版 API 已挂起"
+    },
+    "github.add_comment_to_pending_review": {
+      "fn": "往 PR 的最新 pending review 里加一条评论（需先有 pending review）",
+      "when": "做批量行级评审时逐条挂意见"
+    },
+    "github.add_issue_comment": {
+      "fn": "给 issue/PR 会话加评论或加 reaction",
+      "when": "回复 issue 讨论时"
+    },
+    "github.add_reply_to_pull_request_comment": {
+      "fn": "回复某条 PR 评论（可带 reaction）",
+      "when": "回复既有评审意见时"
+    },
+    "github.create_branch": {
+      "fn": "在仓库里新建分支",
+      "when": "开 PR 前先建 head 分支"
+    },
+    "github.create_or_update_file": {
+      "fn": "单文件新建或更新（更新必须给该文件 sha）",
+      "when": "改一个文件时；多文件一次提交用 push_files"
+    },
+    "github.create_pull_request": {
+      "fn": "新建 PR（title/head/base）",
+      "when": "head 分支必须已存在于远端"
+    },
+    "github.create_repository": {
+      "fn": "在账号或组织下新建仓库（name 必填）",
+      "when": "建仓后要配 token 的 repo 权限"
+    },
+    "github.delete_file": {
+      "fn": "删除仓库里的文件（不可逆）",
+      "when": "清理误提交文件时；确认分支与路径再动手"
+    },
+    "github.fork_repository": {
+      "fn": "把别人的仓库 fork 到自己的账号/组织",
+      "when": "要给开源仓库提 PR 前"
+    },
+    "github.get_commit": {
+      "fn": "读某个 commit 的详情（sha 必填）",
+      "when": "核对改动范围/作者时"
+    },
+    "github.get_file_contents": {
+      "fn": "读仓库里的文件或目录内容",
+      "when": "看代码/文档时；路径是目录会返回列表"
+    },
+    "github.get_label": {
+      "fn": "读某个 label 的定义",
+      "when": "确认标签存在与颜色时"
+    },
+    "github.get_latest_release": {
+      "fn": "读仓库最新 release",
+      "when": "查版本/发布说明"
+    },
+    "github.get_me": {
+      "fn": "读当前 token 对应的用户信息",
+      "when": "确认 token 身份与权限前先跑它"
+    },
+    "github.get_release_by_tag": {
+      "fn": "按 tag 读 release",
+      "when": "按版本号取发布说明"
+    },
+    "github.get_tag": {
+      "fn": "读某个 git tag 详情",
+      "when": "核对 tag 指向的 commit"
+    },
+    "github.get_team_members": {
+      "fn": "列出组织里某个 team 的成员",
+      "when": "权限/评审人排查"
+    },
+    "github.get_teams": {
+      "fn": "列出当前用户所在的 team",
+      "when": "查可访问的组织范围"
+    },
+    "github.issue_read": {
+      "fn": "读 issue 详情（method 选读法）",
+      "when": "看 issue 内容/评论时"
+    },
+    "github.issue_write": {
+      "fn": "新建或更新 issue（method 决定动作）",
+      "when": "提 bug/改 issue 状态时"
+    },
+    "github.list_branches": {
+      "fn": "列出仓库分支",
+      "when": "找 base/head 分支时"
+    },
+    "github.list_commits": {
+      "fn": "列出某分支的提交（默认每页 ≥30）",
+      "when": "看历史/找改动时"
+    },
+    "github.list_issue_fields": {
+      "fn": "列出 issue 字段定义（类型/取值）",
+      "when": "组织级 issue 表单配置"
+    },
+    "github.list_issue_types": {
+      "fn": "列出支持的 issue 类型",
+      "when": "新建 issue 前确认 type"
+    },
+    "github.list_issues": {
+      "fn": "列出仓库 issues（分页用 endCursor）",
+      "when": "盘点待办；按作者过滤别用它"
+    },
+    "github.list_pull_requests": {
+      "fn": "列出仓库 PR",
+      "when": "盘点 PR；按作者筛用 search_pull_requests"
+    },
+    "github.list_releases": {
+      "fn": "列出仓库 releases",
+      "when": "看发布历史"
+    },
+    "github.list_repository_collaborators": {
+      "fn": "列出仓库协作者（分页 nextPage）",
+      "when": "查谁能写这个仓库"
+    },
+    "github.list_tags": {
+      "fn": "列出 git tags",
+      "when": "找版本标签"
+    },
+    "github.merge_pull_request": {
+      "fn": "合并 PR（不可逆）",
+      "when": "CI 与评审都过了才用"
+    },
+    "github.pull_request_read": {
+      "fn": "读 PR 详情（method 决定读什么：详情/diff/评论/评审）",
+      "when": "看 PR 全貌时"
+    },
+    "github.pull_request_review_write": {
+      "fn": "创建/提交/删除 PR 评审（method 决定）",
+      "when": "给 PR 提评审意见时"
+    },
+    "github.push_files": {
+      "fn": "一次提交多个文件（单个 commit）",
+      "when": "批量改文件；单文件用 create_or_update_file"
+    },
+    "github.request_copilot_review": {
+      "fn": "请求 Copilot 对 PR 做自动评审",
+      "when": "要自动反馈时"
+    },
+    "github.run_secret_scanning": {
+      "fn": "扫文件/内容/近期改动里的密钥凭据",
+      "when": "提交前查有没有漏 token"
+    },
+    "github.search_code": {
+      "fn": "GitHub 原生代码搜索（跨仓库）",
+      "when": "找代码片段；query 里带 repo: 限定范围"
+    },
+    "github.search_commits": {
+      "fn": "按提交搜索语法搜 commit",
+      "when": "找某次改动"
+    },
+    "github.search_issues": {
+      "fn": "语义化搜索 issue（自然语言）",
+      "when": "概念性/改写过的描述检索"
+    },
+    "github.search_pull_requests": {
+      "fn": "搜 PR（已限定 is:pr）",
+      "when": "按作者/状态筛 PR"
+    },
+    "github.search_repositories": {
+      "fn": "按名称/描述/readme/topics 搜仓库",
+      "when": "找项目/库"
+    },
+    "github.search_users": {
+      "fn": "按用户名/真名搜用户",
+      "when": "找作者/维护者"
+    },
+    "github.sub_issue_write": {
+      "fn": "给父 issue 加子 issue",
+      "when": "拆任务时"
+    },
+    "github.ui_get": {
+      "fn": "取 MCP Apps 的 UI 数据（labels/assignees/milestones/branches…）",
+      "when": "建 issue/PR 前查可选值"
+    },
+    "github.update_issue_comment": {
+      "fn": "改 issue/PR 会话评论正文（不能改 PR 行级评审批注）",
+      "when": "修错别字/补信息"
+    },
+    "github.update_pull_request": {
+      "fn": "更新已存在 PR（标题/正文/状态等）",
+      "when": "改 PR 元信息"
+    },
+    "github.update_pull_request_branch": {
+      "fn": "把 PR 分支更新到 base 最新（update branch）",
+      "when": "base 有新提交、PR 落后时"
+    },
+    "freeroute.freeroute_route": {
+      "fn": "一条龙布线：导 DSN（注入线宽）→ headless freerouting → 回灌（回写线宽）→ 验收，产物落 route-runs/<tag>/",
+      "when": "要整板自动布线时；只想回灌已有 .ses 用 freeroute_import"
+    },
+    "freeroute.freeroute_export_dsn": {
+      "fn": "导出当前 PCB 的 Specctra DSN（mil）并按网络类注入线宽",
+      "when": "布线第一步；检测到 protected wire 会告警"
+    },
+    "freeroute.freeroute_run": {
+      "fn": "headless 跑 freerouting（jar 已装），返回 unrouted/violations 与耗时",
+      "when": "拿到 DSN 要算布线时；一条龙用 freeroute_route"
+    },
+    "freeroute.freeroute_import": {
+      "fn": "把 .ses 回灌当前 PCB，并按 SES 逐段回写线宽（LCEDA 导入会把宽度压平成 10 mil）",
+      "when": "已有 .ses 要落盘时；**会覆盖现有走线**"
+    },
+    "freeroute.freeroute_dump": {
+      "fn": "解析 .ses：网数/线段/过孔/线宽直方图/每网最大线宽",
+      "when": "回灌前后核对线宽是否真写进去了"
+    },
+    "freeroute.freeroute_verify": {
+      "fn": "布线验收：DRC 违规分类 + 连通性 + 线宽直方图，返回 PASS/FAIL 闸门",
+      "when": "布完必跑；只看 DRC 可用 pcb_run_drc"
+    },
+    "freeroute.pour_read": {
+      "fn": "读当前 PCB 全部覆铜：网络/层/轮廓/是否已填充 + pcb/工程标识",
+      "when": "铺铜前后核对；删前先读"
+    },
+    "freeroute.pour_create_rect": {
+      "fn": "按矩形建覆铜边框（坐标 mil），可选立即重建填充",
+      "when": "创建本身不填铜，要 fill 必须 pour_rebuild"
+    },
+    "freeroute.pour_rebuild": {
+      "fn": "重建覆铜填充并校验：先试原生批量接口，卡住自动 recovery 重试，最后按板面回读判 verified",
+      "when": "铺铜后必跑；不做它铜是空的"
+    },
+    "freeroute.pour_delete": {
+      "fn": "删除覆铜（按 ID 或全删），填充一并消失",
+      "when": "删前先 pour_read 确认"
+    },
+    "lceda-cli.lceda-pro.help": {
+      "fn": "返回可用子命令与用法（CLI 能力入口）",
+      "when": "**任何 lceda-cli 交互都先调它**"
+    },
+    "lceda-cli.lceda-pro.discover": {
+      "fn": "按关键词搜索命令，返回匹配项",
+      "when": "help 之后要定位具体命令时"
+    },
+    "lceda-cli.lceda-pro.call": {
+      "fn": "执行已注册命令，返回真实数据（搜索结果/页面内容等）",
+      "when": "拿到 path 之后真正执行；先 discover 找 path"
+    },
+    "jlceda.pcb_get_pads": {
+      "fn": "查焊盘信息（可按位号过滤）",
+      "when": "要焊盘坐标；整体快照用 pcb_get_state"
+    },
+    "jlceda.pcb_get_net_primitives": {
+      "fn": "查指定网络的所有图元",
+      "when": "按网络深挖；全板走线用 pcb_get_tracks"
+    },
+    "jlceda.pcb_get_silkscreens": {
+      "fn": "查所有丝印文字",
+      "when": "丝印排版/查重复前"
+    },
+    "jlceda.pcb_get_board_info": {
+      "fn": "工程信息：板名、层数等",
+      "when": "开工确认板子"
+    },
+    "jlceda.pcb_get_feature_support": {
+      "fn": "查询 bridge 支持的功能列表",
+      "when": "不确定某能力是否支持时先查"
+    },
+    "jlceda.pcb_bridge_status": {
+      "fn": "官方 Bridge Server 连接状态：服务标识/EDA 窗口数/当前活动窗口",
+      "when": "bridge 疑似掉线时"
+    },
+    "jlceda.pcb_ping": {
+      "fn": "检查 bridge 连接状态（轻量）",
+      "when": "连不上先 ping，再 bridge_status"
+    },
+    "jlceda.pcb_list_eda_windows": {
+      "fn": "列出所有已连接 EDA 窗口及活动状态",
+      "when": "多开时确认执行目标"
+    },
+    "jlceda.pcb_select_eda_window": {
+      "fn": "选择当前活动的 EDA 窗口（多开时指定执行目标）",
+      "when": "多开环境绑定目标窗口"
+    },
+    "jlceda.pcb_drc_autofix": {
+      "fn": "跑 DRC 并自动修复可自动处理的问题（当前仅丝印冲突）",
+      "when": "丝印冲突多时；其他违规 manual"
+    },
+    "jlceda.pcb_design_snapshot": {
+      "fn": "保存当前设计快照（作为 pcb_design_diff 的基线）",
+      "when": "要对比改动前先快照"
+    },
+    "jlceda.pcb_design_diff": {
+      "fn": "对比当前设计与上次快照，报告新增/移除/移动的元件",
+      "when": "想知道这轮改了什么"
+    },
+    "jlceda.pcb_design_health_report": {
+      "fn": "一键健康报告：BOM+连通性+载流+DRC+间距，给 READY/NEEDS_WORK/POOR",
+      "when": "交付前总评分"
+    },
+    "jlceda.pcb_auto_place_components": {
+      "fn": "自动布局：把元件移到其焊盘质心（一阶优化），锁定件跳过",
+      "when": "先摆个初稿；精排靠 pcb_batch_move"
+    },
+    "jlceda.pcb_auto_fanout_and_route": {
+      "fn": "流水线：全部扇出 → 全部自动布线 → DRC → 丝印自修复",
+      "when": "从零快速出可布板；细调后手工"
+    },
+    "jlceda.pcb_auto_silkscreen": {
+      "fn": "自动排列所有丝印（避免重叠）",
+      "when": "丝印叠一起时"
+    },
+    "jlceda.pcb_move_component": {
+      "fn": "移动元件到指定坐标（mil）",
+      "when": "单件挪位"
+    },
+    "jlceda.pcb_relocate_component": {
+      "fn": "安全搬迁元件（自动断开走线）",
+      "when": "挪 已布线 的元件；直接 move 会留断线"
+    },
+    "jlceda.pcb_select_component": {
+      "fn": "在编辑器里选中元件",
+      "when": "要在 GUI 上高亮定位"
+    },
+    "jlceda.pcb_route_differential_pairs": {
+      "fn": "差分对自动布线：正/负平行 L 型（负网偏移 gap），报等长偏差",
+      "when": "有差分对时；普通网络用 pcb_auto_route_nets"
+    },
+    "jlceda.pcb_create_diff_pair": {
+      "fn": "创建差分对定义（name/posNet/negNet）",
+      "when": "布线前先定义差分对"
+    },
+    "jlceda.pcb_list_diff_pairs": {
+      "fn": "列出所有差分对",
+      "when": "查已定义的差分对"
+    },
+    "jlceda.pcb_delete_diff_pair": {
+      "fn": "删除差分对定义",
+      "when": "重建前清理"
+    },
+    "jlceda.pcb_create_equal_length": {
+      "fn": "创建等长组（name/nets）",
+      "when": "要等长布线时"
+    },
+    "jlceda.pcb_list_equal_lengths": {
+      "fn": "列出所有等长组",
+      "when": "查等长约束"
+    },
+    "jlceda.pcb_delete_equal_length": {
+      "fn": "删除等长组",
+      "when": "重建前清理"
+    },
+    "jlceda.pcb_create_keepout": {
+      "fn": "创建矩形禁布区",
+      "when": "避开安装孔/天线区"
+    },
+    "jlceda.pcb_delete_keepout": {
+      "fn": "删除禁布区（按 primitiveId）",
+      "when": "改禁布区时"
+    },
+    "jlceda.pcb_create_copper_pour": {
+      "fn": "创建矩形铺铜区域（net/layer/坐标），创建不填铜",
+      "when": "铺完要 pcb_refill 类重算；freeroute.pour_rebuild 走另一通道"
+    },
+    "jlceda.pcb_delete_pour": {
+      "fn": "删除铺铜（按 primitiveId）",
+      "when": "重铺前清理"
+    },
+    "jlceda.pcb_delete_tracks": {
+      "fn": "删除走线（按 primitiveIds）",
+      "when": "清线重布"
+    },
+    "jlceda.pcb_delete_via": {
+      "fn": "删除过孔（按 primitiveIds）",
+      "when": "清孔重布"
+    },
+    "jlceda.pcb_delete_selected": {
+      "fn": "删除当前选中的对象",
+      "when": "GUI 里已选中时最快"
+    },
+    "jlceda.pcb_netlist_report": {
+      "fn": "从 PCB 焊盘数据生成网表报告（元件→引脚→网络）",
+      "when": "PCB 侧反查网络；原理图导出用 sch_get_netlist"
+    },
+    "jlceda.pcb_current_density_report": {
+      "fn": "各网络载流能力估算（IPC-2221：线宽总和→电流），标记偏低网络",
+      "when": "电源网络检查"
+    },
+    "jlceda.pcb_bom_export": {
+      "fn": "导出 PCB BOM（按元件名聚合：数量/位号/网络/LCSC 料号），JSON+CSV",
+      "when": "出料单"
+    },
+    "jlceda.pcb_fanout_component": {
+      "fn": "为指定元件的所有焊盘创建扇出过孔（同网络）",
+      "when": "BGA/QFN 扇出"
+    },
+    "jlceda.pcb_create_component": {
+      "fn": "从库放置元件到 PCB（libraryUuid/componentUuid/layer/坐标）",
+      "when": "摆件"
+    },
+    "jlceda.pcb_move_silkscreen": {
+      "fn": "移动丝印文字（primitiveId/坐标）",
+      "when": "微调丝印位置"
+    },
+    "jlceda.sch_get_state": {
+      "fn": "读原理图状态",
+      "when": "原理图侧盘面"
+    },
+    "jlceda.sch_run_drc": {
+      "fn": "跑原理图 DRC",
+      "when": "原理图侧检查"
+    },
+    "jlceda.sch_generate_from_netlist": {
+      "fn": "用官方 sch_Netlist.setNetlist 把网表导入原理图（生成原理图），支持 EasyEDA/JLCEDA/Protel2/PADS/Allegro…",
+      "when": "已有网表要出图；**只认 Protel2 是本机约定**"
+    },
+    "jlceda.sch_generate_from_pcb": {
+      "fn": "一键：读当前 PCB 网表报告→转 Protel2→导入原理图生成",
+      "when": "由 PCB 反推原理图"
+    },
+    "jlceda.pcb_eprj3_project_info": {
+      "fn": "检查 .eprj3 工程：索引、原理图/PCB/面板文件清单、源文件记录统计",
+      "when": "不打开工程也能摸清结构"
+    },
+    "jlceda.pcb_calc_impedance": {
+      "fn": "算走线阻抗（微带/带状/差分），或按目标阻抗反算线宽",
+      "when": "阻抗控制前；层参数要准（height 必填）"
+    },
+    "jlceda.pcb_calc_trace_width": {
+      "fn": "按载流算最小线宽（IPC-2221）",
+      "when": "电源线定宽"
+    },
+    "freecad.execute_code": {
+      "fn": "在运行中的 FreeCAD GUI 里执行 Python（可改文档树）",
+      "when": "要即时操作 GUI 文档；重活别用（会卡界面）"
+    },
+    "freecad.get_async_status": {
+      "fn": "查看 execute_code_async 起的后台任务状态",
+      "when": "异步跑完没？先查它"
+    },
+    "freecad.create_document": {
+      "fn": "新建 FreeCAD 文档（name）",
+      "when": "建模第一步"
+    },
+    "freecad.list_documents": {
+      "fn": "列出已打开的文档",
+      "when": "确认操作对象"
+    },
+    "freecad.create_object": {
+      "fn": "按 obj_type 新建对象（Part::Box/Sketch 等），参数见 schema",
+      "when": "放几何体；复杂形状用代码"
+    },
+    "freecad.get_object": {
+      "fn": "读某对象的属性",
+      "when": "看尺寸/位置；批量读用 get_objects"
+    },
+    "freecad.get_objects": {
+      "fn": "读某文档全部对象",
+      "when": "盘点文档内容"
+    },
+    "freecad.edit_object": {
+      "fn": "改对象属性（create_object 覆盖不到时用）",
+      "when": "微调参数"
+    },
+    "freecad.delete_object": {
+      "fn": "删对象",
+      "when": "清理中间体"
+    },
+    "freecad.reload_document": {
+      "fn": "关掉再开文档，拾取外部文件改动",
+      "when": "外部改过文件后用；会丢未保存改动"
+    },
+    "freecad.get_view": {
+      "fn": "截当前视图（view_name）",
+      "when": "看渲染结果；只能截已打开的视图"
+    },
+    "freecad.get_parts_list": {
+      "fn": "列出 parts 库插件里的零件",
+      "when": "找现成标准件"
+    },
+    "freecad.insert_part_from_library": {
+      "fn": "从 parts 库插入零件（relative_path）",
+      "when": "装配标准件"
+    },
+    "freecad.get_rpc_status": {
+      "fn": "查 RPC 与 GUI dispatch 健康",
+      "when": "连不上先查它"
+    },
+    "freecad.run_fem_analysis": {
+      "fn": "对已有 Fem::FemAnalysis 跑 CalculiX 求解",
+      "when": "结构仿真；结果摘要返回"
+    },
+    "jlceda-native.api_index": {
+      "fn": "列出可调用的 EDA API 索引",
+      "when": "要用 api_invoke 前先看有什么"
+    },
+    "jlceda-native.api_search": {
+      "fn": "按关键词搜 EDA API 签名与说明",
+      "when": "找 API 名称"
+    },
+    "jlceda-native.api_invoke": {
+      "fn": "调用指定 EDA API（原理图器件 create 会解析裸引用为完整库对象）",
+      "when": "api_search 找到名字后执行；本机自建 lceda-tools 优先"
+    },
+    "jlceda-native.bridge_clients": {
+      "fn": "列出已连接 EDA 页面/项目身份/心跳/就绪状态",
+      "when": "**任何读写前先确认目标页面**（多开必需）"
+    },
+    "jlceda-native.bridge_select_client": {
+      "fn": "按 clientId 绑定后续操作目标",
+      "when": "多开时切目标；旧版 Bridge 不支持探活需升级扩展"
+    },
+    "jlceda-native.bridge_recover_client": {
+      "fn": "处理写超时/执行中失联/提交未确认/PCB 导入待确认",
+      "when": "写操作卡死后按 requestId 恢复"
+    },
+    "jlceda-native.project_info": {
+      "fn": "读当前工程/板/原理图/PCB 与活动文档，可列图页目录",
+      "when": "开工定位；PCB 页也能列原理图目录"
+    },
+    "jlceda-native.eda_context": {
+      "fn": "当前 EDA 运行时上下文",
+      "when": "排错时看运行时状态"
+    },
+    "jlceda-native.component_select": {
+      "fn": "搜器件返回候选（最多 5 个），可直接给 LCSC C 号",
+      "when": "选型比对；下单前核对库存/价格"
+    },
+    "jlceda-native.component_place": {
+      "fn": "交互式逐件放置已确认器件（每件 Esc/右键结束）",
+      "when": "要人工确认摆位时"
+    },
+    "jlceda-native.component_place_auto": {
+      "fn": "按坐标或网格/线性布局自动放件",
+      "when": "批量摆件"
+    },
+    "jlceda-native.schematic_component_edit": {
+      "fn": "读当前原理图页器件，或按 ID 改/删",
+      "when": "改单个器件属性；批量用 lceda_batch"
+    },
+    "jlceda-native.schematic_auto_layout": {
+      "fn": "EDA 内置智能布局（BETA，需 v4）",
+      "when": "先摆初稿；精确排版靠 batch_move"
+    },
+    "jlceda-native.schematic_auto_routing": {
+      "fn": "EDA 内置原理图自动布线（BETA，需 v4）",
+      "when": "连线草稿；规范化连网仍靠 lceda_batch"
+    },
+    "jlceda-native.netlabel_place": {
+      "fn": "在引脚位置放网络标签代替导线（电源/地用网络标识）",
+      "when": "要标签式连网；**普通标签需 EDA v4，3.x 报不支持**"
+    },
+    "jlceda-native.netlabel_modify": {
+      "fn": "按图元 ID 或引脚位置改已有网络标签名",
+      "when": "纠错；netlabel_place 的备用方案"
+    },
+    "jlceda-native.netlist_compare": {
+      "fn": "对比两份原理图/PCB 网表源，返回元件/网络差异",
+      "when": "验收比对；本机 Proel2 用 lceda_netcheck"
+    },
+    "jlceda-native.pcb_read": {
+      "fn": "按需读当前 PCB 语义快照（默认器件+网络，sections 可选焊盘/布线/覆铜/板框/文本）",
+      "when": "快速盘面；要局部用 pcb_net_query/pcb_routing_edit"
+    },
+    "jlceda-native.pcb_net_query": {
+      "fn": "读 PCB 网络详情，可按网络过滤",
+      "when": "查某网络"
+    },
+    "jlceda-native.pcb_routing_edit": {
+      "fn": "读取/改/删铜层直线、圆弧、折线、过孔（直线与过孔创建走 pcb_connectivity_action）",
+      "when": "精细改线；整条布线用 lceda-tools/jlceda"
+    },
+    "jlceda-native.pcb_connectivity_action": {
+      "fn": "为指定网络创建直线或过孔（默认要求网络已存在）",
+      "when": "精确建线/孔；新网络需 allowNewNet:true"
+    },
+    "jlceda-native.pcb_pour_manage": {
+      "fn": "读全部覆铜边框与填充摘要，或建/改/删/显式重建",
+      "when": "铺铜核对；Pro 通道也可 reeroute.pour_*"
+    },
+    "jlceda-native.pcb_region_manage": {
+      "fn": "读/按 ID 编辑禁布与约束区域",
+      "when": "改禁布区；多轮廓要在末尾重复首点闭合"
+    },
+    "jlceda-native.pcb_board_outline_manage": {
+      "fn": "读/建/改/删板框层图元（层 11、空网络）",
+      "when": "板框脚本化；回读可能为 null"
+    },
+    "jlceda-native.pcb_component_edit": {
+      "fn": "读当前 PCB 器件，或按 ID 改/删、按坐标从库创建",
+      "when": "改单件；批量移动用 jlceda.pcb_batch_move"
+    },
+    "jlceda-native.pcb_documents_manage": {
+      "fn": "列/建/复制/重命名当前工程 PCB（写需 confirm:true）",
+      "when": "多板工程管理"
+    },
+    "jlceda-native.pcb_layer_manage": {
+      "fn": "读铜层数与图层清单，或 confirm 后设 2–32 偶数层",
+      "when": "改层数；降层会移除内层图元"
+    },
+    "jlceda-native.pcb_layer_query": {
+      "fn": "读 PCB 层与铜层数",
+      "when": "只读查层"
+    },
+    "jlceda-native.pcb_drc_check": {
+      "fn": "只读跑当前 PCB DRC，offset/limit 分页返回详情",
+      "when": "看 DRC 明细；快速跑用 jlceda.pcb_run_drc"
+    },
+    "jlceda-native.pcb_realtime_drc": {
+      "fn": "读或显式控制 PCB 实时 DRC 状态（EDA v4.2）",
+      "when": "实时规则开/关"
+    },
+    "jlceda-native.pcb_constraints_query": {
+      "fn": "读 PCB 规则与约束组（网类/差分对/等长）",
+      "when": "查约束"
+    },
+    "jlceda-native.pcb_constraints_manage": {
+      "fn": "建/改名/删/改网类、差分对、等长组成员",
+      "when": "设约束"
+    },
+    "jlceda-native.pcb_text_manage": {
+      "fn": "读 PCB 独立文本与器件属性；建/改/删文本或改属性值/可见性",
+      "when": "丝印文字管理"
+    },
+    "jlceda-native.pcb_document_action": {
+      "fn": "查 PCB 坐标/选择/过滤器/图元，或导航活动文档",
+      "when": "读操作用"
+    },
+    "jlceda-native.editor_navigate": {
+      "fn": "打开或激活指定图页/PCB，并回读身份",
+      "when": "切页；需先 project_info 拿 UUID"
+    },
+    "jlceda-native.design_source_export": {
+      "fn": "读活动文档源或封装源（有界预览）",
+      "when": "备份/审计源"
+    },
+    "jlceda-native.design_compare": {
+      "fn": "用官方对比 API 比原理图/PCB/网表源",
+      "when": "官方口径比对"
+    },
+    "jlceda-native.design_archive_export": {
+      "fn": "把工程/文档导出为原生 EasyEDA 归档",
+      "when": "交付存档"
+    },
+    "jlceda-native.library_search": {
+      "fn": "搜官方器件/符号/封装/3D/模块/面板/仿真模型",
+      "when": "找库资产；器件用 component_select 更快"
+    },
+    "jlceda-native.library_sources": {
+      "fn": "列出可用库源与其 system/personal/project 归属",
+      "when": "确认写在哪个库"
+    },
+    "jlceda-native.library_preview": {
+      "fn": "渲染符号/封装库资产供目视检查（不改库）",
+      "when": "看长什么样"
+    },
+    "jlceda-native.library_classification_query": {
+      "fn": "读库分类树（kind+libraryUuid）",
+      "when": "按分类检索前"
+    },
+    "jlceda-native.footprint_read": {
+      "fn": "完整读当前独立封装编辑器：焊盘/过孔/直线/圆弧/折线/文本/属性",
+      "when": "封装验收（当独立验收方）"
+    },
+    "jlceda-native.footprint_save": {
+      "fn": "保存当前独立封装：读全源并原样写回同一 libraryUuid/documentUuid",
+      "when": "**saved:true 只表示 updateDocument 返回，落库要回读**"
+    },
+    "jlceda-native.manufacture_export": {
+      "fn": "导出 PCB/原理图制造文件（元数据+预览或 Base64）",
+      "when": "出制造包；BOM 用 csv/xlsx"
+    },
+    "jlceda-native.manufacture_templates_query": {
+      "fn": "列出 PCB BOM 模板或原理图装配变体",
+      "when": "套模板出包"
+    },
+    "jlceda-native.board_setup": {
+      "fn": "在当前工程建 Board、原理图与关联 PCB（需 confirm）",
+      "when": "新工程骨架"
+    },
+    "playwright.browser_navigate": {
+      "fn": "打开 URL",
+      "when": "第一步；已在页面上就不要再 navigate"
+    },
+    "playwright.browser_snapshot": {
+      "fn": "抓页面无障碍快照（比截图更适合推理）",
+      "when": "**默认先用它**拿元素引用，再 click/type"
+    },
+    "playwright.browser_find": {
+      "fn": "在当前快照里按文本/正则找元素",
+      "when": "页大时定位，省一次全量快照"
+    },
+    "playwright.browser_click": {
+      "fn": "点击元素（target 用快照里的引用）",
+      "when": "操作第一步；弹窗/遮罩先 handle_dialog"
+    },
+    "playwright.browser_type": {
+      "fn": "往可编辑元素输入文本",
+      "when": "填输入框；整表单用 fill_form"
+    },
+    "playwright.browser_fill_form": {
+      "fn": "一次填多个表单字段",
+      "when": "批量填表，省往返"
+    },
+    "playwright.browser_select_option": {
+      "fn": "下拉框选值（target+values）",
+      "when": "select 元素"
+    },
+    "playwright.browser_hover": {
+      "fn": "悬停元素",
+      "when": "触发 hover 菜单"
+    },
+    "playwright.browser_drag": {
+      "fn": "把元素拖到另一元素",
+      "when": "拖拽排序/画布"
+    },
+    "playwright.browser_drop": {
+      "fn": "把文件或 MIME 数据拖进元素",
+      "when": "拖文件上传的替代"
+    },
+    "playwright.browser_file_upload": {
+      "fn": "上传一个或多个文件",
+      "when": "点开文件选择框后用"
+    },
+    "playwright.browser_press_key": {
+      "fn": "按一个键",
+      "when": "回车/快捷键"
+    },
+    "playwright.browser_wait_for": {
+      "fn": "等文本出现/消失或等指定时间",
+      "when": "异步渲染后取快照前"
+    },
+    "playwright.browser_handle_dialog": {
+      "fn": "处理 alert/confirm 等对话框（accept 布尔）",
+      "when": "有对话框时否则后续全阻塞"
+    },
+    "playwright.browser_console_messages": {
+      "fn": "读取页面 console 消息（可按级别过滤）",
+      "when": "排错前先看"
+    },
+    "playwright.browser_network_requests": {
+      "fn": "列出本次加载以来的网络请求（可 static 过滤）",
+      "when": "看接口调用/timing"
+    },
+    "playwright.browser_network_request": {
+      "fn": "读单个请求的完整头与体（按 index）",
+      "when": "深挖某接口"
+    },
+    "playwright.browser_evaluate": {
+      "fn": "在页面或元素上执行 JS 表达式",
+      "when": "快照拿不到时兜底"
+    },
+    "playwright.browser_tabs": {
+      "fn": "列出/新建/关闭/切换标签页（action）",
+      "when": "多标签场景"
+    },
+    "playwright.browser_resize": {
+      "fn": "调整窗口尺寸（宽高）",
+      "when": "验证响应式"
+    },
+    "playwright.browser_emulate_media": {
+      "fn": "模拟 CSS 媒体特性（深浅色/打印等）",
+      "when": "测深色模式"
+    },
+    "playwright.browser_take_screenshot": {
+      "fn": "截图（scale 可选）",
+      "when": "**拿不到元素/要看视觉时**；优先 snapshot"
+    },
+    "playwright.browser_navigate_back": {
+      "fn": "浏览器后退",
+      "when": "回上一页"
+    },
+    "playwright.browser_close": {
+      "fn": "关闭页面",
+      "when": "收尾释放资源"
+    },
+    "playwright.browser_run_code_unsafe": {
+      "fn": "执行任意 Playwright 片段（不安全）",
+      "when": "**最后手段**，常规操作别用"
+    },
+    "chrome-devtools.list_pages": {
+      "fn": "列出浏览器里打开的页面（拿 pageId）",
+      "when": "**所有 chrome-devtools 操作前先确认 pageId**"
+    },
+    "chrome-devtools.new_page": {
+      "fn": "新开标签并加载 URL",
+      "when": "开页；后续调用要 select_page"
+    },
+    "chrome-devtools.select_page": {
+      "fn": "选中某页作为后续调用的上下文",
+      "when": "切页"
+    },
+    "chrome-devtools.navigate_page": {
+      "fn": "跳 URL 或前进/后退/刷新（pageId）",
+      "when": "导航"
+    },
+    "chrome-devtools.close_page": {
+      "fn": "关页（pageId，最后一个不能关）",
+      "when": "收尾"
+    },
+    "chrome-devtools.take_snapshot": {
+      "fn": "按 a11y 树出文本快照（含 uid）",
+      "when": "**取元素 uid 的主路径**"
+    },
+    "chrome-devtools.click": {
+      "fn": "点击元素（pageId+uid）",
+      "when": "snapshot 拿 uid 后点"
+    },
+    "chrome-devtools.fill": {
+      "fn": "给输入框/下拉填值（uid+value）",
+      "when": "单字段"
+    },
+    "chrome-devtools.fill_form": {
+      "fn": "一次填多个表单元素",
+      "when": "批量填表"
+    },
+    "chrome-devtools.hover": {
+      "fn": "悬停元素",
+      "when": "hover 菜单"
+    },
+    "chrome-devtools.drag": {
+      "fn": "把元素拖到另一元素（uid→uid）",
+      "when": "拖拽"
+    },
+    "chrome-devtools.press_key": {
+      "fn": "按键或组合键",
+      "when": "回车/快捷键"
+    },
+    "chrome-devtools.type_text": {
+      "fn": "向已聚焦输入框打字",
+      "when": "先 focus 再打"
+    },
+    "chrome-devtools.upload_file": {
+      "fn": "通过元素上传文件（uid+路径）",
+      "when": "文件上传"
+    },
+    "chrome-devtools.wait_for": {
+      "fn": "等指定文本出现",
+      "when": "异步渲染"
+    },
+    "chrome-devtools.handle_dialog": {
+      "fn": "处理打开的浏览器对话框（action）",
+      "when": "有对话框时"
+    },
+    "chrome-devtools.evaluate_script": {
+      "fn": "在页面里执行 JS",
+      "when": "snapshot 不够用时兜底"
+    },
+    "chrome-devtools.list_console_messages": {
+      "fn": "列出自上次导航以来的 console 消息",
+      "when": "排错第一手"
+    },
+    "chrome-devtools.get_console_message": {
+      "fn": "按 msgid 取单条 console 消息",
+      "when": "细看某条"
+    },
+    "chrome-devtools.list_network_requests": {
+      "fn": "列出最近网络请求",
+      "when": "看接口"
+    },
+    "chrome-devtools.get_network_request": {
+      "fn": "取某请求详情（reqid 可选）",
+      "when": "深挖"
+    },
+    "chrome-devtools.get_css_styles": {
+      "fn": "取元素的匹配 CSS/内联/继承样式",
+      "when": "改样式/查生效规则"
+    },
+    "chrome-devtools.take_screenshot": {
+      "fn": "截图（整页或元素）",
+      "when": "看视觉；元素的 uid 截图很省"
+    },
+    "chrome-devtools.resize_page": {
+      "fn": "调整页面尺寸",
+      "when": "响应式验证"
+    },
+    "chrome-devtools.emulate": {
+      "fn": "模拟特性（网络/CPU/视口等），**每次调用替换全部仿真设置**",
+      "when": "测弱网；重置要显式设回"
+    },
+    "chrome-devtools.lighthouse_audit": {
+      "fn": "跑 Lighthouse 拿评分与失败审计",
+      "when": "性能/可访问性体检"
+    },
+    "chrome-devtools.performance_start_trace": {
+      "fn": "开始性能 trace",
+      "when": "前端性能诊断第一步"
+    },
+    "chrome-devtools.performance_stop_trace": {
+      "fn": "停止 trace 并出结果",
+      "when": "配合 start"
+    },
+    "chrome-devtools.performance_analyze_insight": {
+      "fn": "对某条 Performance Insight 取详细数据",
+      "when": "深挖某性能问题"
+    },
+    "chrome-devtools.screencast_start": {
+      "fn": "开始录屏",
+      "when": "复现过程记录"
+    },
+    "chrome-devtools.screencast_stop": {
+      "fn": "停止录屏",
+      "when": "收尾"
+    },
+    "chrome-devtools.take_heapsnapshot": {
+      "fn": "抓堆快照到文件",
+      "when": "内存泄漏分析"
+    },
+    "jlceda.calc_impedance": {
+      "fn": "算走线阻抗（微带/带状/差分微带/差分带状），或按目标阻抗反算线宽",
+      "when": "做阻抗控制（USB/HDMI/DDR）前；height 必须给真实层厚"
+    },
+    "jlceda.calc_trace_width": {
+      "fn": "按载流要求算最小线宽（IPC-2221）",
+      "when": "电源线定宽；再留 20% 余量"
+    },
+    "jlceda-native.eda_canvas_snapshot": {
+      "fn": "把当前 EDA 画布可见区域截成有界图像返回",
+      "when": "要看渲染结果；取几何数据用 pcb_read/design_source_export"
+    },
+    "jlceda-native.schematic_review": {
+      "fn": "原理图评审：连通性/单脚网/悬空等检查项汇总",
+      "when": "交付前评审；与 lceda_audit 交叉验证"
+    },
+    "jlceda-native.schematic_drc_check": {
+      "fn": "跑原理图 DRC（原生）",
+      "when": "原理图侧规则检查；Pro 通道用 jlceda.sch_run_drc"
+    },
+    "jlceda-native.schematic_read": {
+      "fn": "按需读当前原理图页语义快照（器件/网络/导线/标签）",
+      "when": "读图结构；要源文本用 design_source_export"
+    },
+    "jlceda-native.schematic_layout_check": {
+      "fn": "原理图布局检查（重叠/越界/可读性问题）",
+      "when": "排布后自检"
+    },
+    "jlceda-native.schematic_connectivity_action": {
+      "fn": "在原理图为指定网络建导线（可连引脚/图元）",
+      "when": "精确连线；批量连网用 lceda_batch"
+    },
+    "jlceda-native.schematic_pages_manage": {
+      "fn": "列出/新建/复制/重命名原理图图页",
+      "when": "多页工程管理"
+    },
+    "jlceda-native.schematic_text_manage": {
+      "fn": "读/建/改/删原理图文本与器件属性文字",
+      "when": "改注释/位号显示；链接性文本用 lceda_text"
+    },
+    "jlceda-native.schematic_wire_manage": {
+      "fn": "读/改/删原理图导线（直线/折线）",
+      "when": "改线；画线用 schematic_connectivity_action"
+    },
+    "jlceda-native.workspace_query": {
+      "fn": "查工作区/工程列表与打开状态",
+      "when": "找工程前先用它，别猜 uuid"
+    },
+    "konnect.add_board_outline": {
+      "fn": "Add a rectangular board outline on Edge.Cuts, optionally using circular round…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_board_text": {
+      "fn": "Add a silkscreen or fabrication text string to the board.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_bus": {
+      "fn": "Add a bus segment between two points.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_bus_entry": {
+      "fn": "Add a bus entry — the 45-degree tick that connects a wire to a bus.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_component_annotation": {
+      "fn": "Add or update a custom property consistently across every placed unit of a co…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_copper_pour": {
+      "fn": "Alias of pcb_board's add_zone, kept for compatibility: identical arguments, d…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_design_rule": {
+      "fn": "Add a natural-language design rule that Claude should follow in this project.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_hierarchical_sheet": {
+      "fn": "Insert a hierarchical sheet into a parent schematic, linking it to a child .k…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_junction": {
+      "fn": "Add a junction dot at a point where wires cross or T-intersect, or where a pi…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_layer": {
+      "fn": "Add a new inner copper or technical layer to the board layer stack.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_mounting_hole": {
+      "fn": "Add an NPTH mounting hole footprint at the specified position, under the Moun…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_net": {
+      "fn": "Idempotently add a net to the top-level net table of a pre-KiCad-10 board (S-…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_no_connect": {
+      "fn": "Add a no-connect flag (X marker) to an unconnected pin endpoint.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_power_symbol": {
+      "fn": "Add a power symbol (VCC, GND, etc.) to the schematic.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_schematic_component": {
+      "fn": "Add a symbol from a KiCAD library to the schematic.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_schematic_connection": {
+      "fn": "Connect two schematic points directly with a wire (auto-routes H+V segments).",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_schematic_net_label": {
+      "fn": "Add a net label to the schematic.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_schematic_text": {
+      "fn": "Add a text annotation (non-net label) to the schematic at a given position.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_sheet_pin": {
+      "fn": "Manually add a single pin to an existing sheet block.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_via": {
+      "fn": "Add a through-hole via at a given position and assign it to a net via KiCAD I…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_wire": {
+      "fn": "Add a wire segment between two points.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.add_zone": {
+      "fn": "Add a copper fill zone polygon on a specified layer and net.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.align_components": {
+      "fn": "Align multiple footprints along a common X or Y axis via KiCAD IPC.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.apply_specctra_ses": {
+      "fn": "Apply a fully validated Freerouting SES to the exact live KiCad board as one …",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_active_toolsets": {
+      "fn": "Return the list of currently loaded toolsets and how many tools each provides.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.annotate_schematic": {
+      "fn": "Assign reference designators in the saved schematic the way eeschema's Tools …",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.apply_template": {
+      "fn": "Instantiate a reference circuit template into the current schematic.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.assign_net_to_class": {
+      "fn": "Assign a net to an existing netclass, as a netclass_patterns entry in the sib…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.audit_connections": {
+      "fn": "Check for common connection mistakes: missing pull-ups on I2C/reset, missing …",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.audit_decoupling": {
+      "fn": "Audit schematic connectivity between IC power nets and decoupling capacitors.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.audit_manufacturing": {
+      "fn": "DFM checks for the configured fab house: component spacing, silkscreen overla…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.audit_power_rails": {
+      "fn": "Check power rail integrity: missing bulk capacitance, no test points on power…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.auto_place_from_schematic": {
+      "fn": "DEPRECATED diagnostic first-placement plan: cluster footprints by shared nets…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_add_bus": {
+      "fn": "Add multiple bus segments in a single file read/write cycle.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_add_junction": {
+      "fn": "Add multiple junction dots in a single file read/write cycle.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_add_no_connect": {
+      "fn": "Add multiple no-connect flags in a single file read/write cycle.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_add_wire": {
+      "fn": "Add multiple wire segments in a single file read/write cycle.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_component": {
+      "fn": "Remove a footprint from the board via KiCAD IPC.",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_connect_pins": {
+      "fn": "Connect multiple component pin pairs by reference and pin number, in a single…",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_connect_to_net": {
+      "fn": "Connect multiple component pins to a named net.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_delete": {
+      "fn": "Delete multiple schematic items (wires, labels, junctions, components) by UUI…",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_delete_no_connect": {
+      "fn": "Delete multiple no-connect flags in a single file read/write cycle.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_delete_schematic_components": {
+      "fn": "Delete multiple components by reference designator in a single atomic file wr…",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_delete_schematic_wire": {
+      "fn": "Delete multiple wire segments in a single file read/write cycle.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_edit_schematic_components": {
+      "fn": "Apply field updates (Value, Footprint, custom properties) to multiple compone…",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_get_schematic_pin_locations": {
+      "fn": "Get pin locations for multiple components in a single file read.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_place_components": {
+      "fn": "Place multiple symbols from KiCAD libraries in one write with committed-file …",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.batch_rotate_labels": {
+      "fn": "Rotate multiple labels by net name in a single file read/write cycle.",
+      "when": "批量操作；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.bulk_move_schematic_components": {
+      "fn": "Move multiple components by a uniform dx/dy offset in a single atomic file wr…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.check_bom_health": {
+      "fn": "Analyze the BOM for supply chain risks: parts with no MPN, lifecycle warnings…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.check_clearance": {
+      "fn": "Measure spacing between two footprints on the requested board.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.check_freerouting": {
+      "fn": "Locate a Freerouting installation, including KiCad PCM plugin directories, an…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.check_kicad_ui": {
+      "fn": "Check whether the KiCad GUI application is running and whether IPC responds w…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.check_schematic_overlaps": {
+      "fn": "Find overlapping symbols from their transformed drawing/pin bounds (excluding…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.compare_visual_baseline": {
+      "fn": "Re-render a sheet at its stored baseline's width and report pixel drift: chan…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.connect_passthrough": {
+      "fn": "Add a wire stub and matching net label at a point to route a signal through a…",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.connect_pins": {
+      "fn": "Connect two component pins by reference and pin number.",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.connect_pins_to_bus": {
+      "fn": "Fan a set of pins out onto a bus: for each pin, a wire stub from the pin to t…",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.connect_to_net": {
+      "fn": "Connect a pin to a named net by adding a short wire stub and a net label.",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.copy_routing_pattern": {
+      "fn": "Copy a routing pattern (traces and vias) from one region of the board to anot…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.create_netclass": {
+      "fn": "Create or update a netclass in the project's design rules.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.create_footprint": {
+      "fn": "Create a new footprint (.kicad_mod) file from a pad layout description.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.create_project": {
+      "fn": "Create a new KiCAD project at the given path.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.create_schematic": {
+      "fn": "Create a new blank .kicad_sch schematic file, on A4 unless another paper size…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_graphics": {
+      "fn": "Delete board graphics — lines, rectangles, arcs, circles, polygons, curves, t…",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_no_connect": {
+      "fn": "Remove a no-connect flag at a given position.",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_schematic_component": {
+      "fn": "Remove a component by reference designator, including every placed unit of a …",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_schematic_net_label": {
+      "fn": "Delete a net label by net name and position.",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_schematic_wire": {
+      "fn": "Delete a wire segment by its UUID, or by matching BOTH endpoints (all four of…",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_sheet": {
+      "fn": "Remove a sheet reference from the parent schematic.",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_sheet_pin": {
+      "fn": "Remove a single pin from a sheet without touching the rest of the sheet.",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_symbol": {
+      "fn": "Delete a symbol definition from a .kicad_sym library file.",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.delete_trace": {
+      "fn": "Delete a trace segment identified by its UUID via KiCAD IPC.",
+      "when": "删除（不可逆，删前先读）；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.download_jlcpcb_database": {
+      "fn": "Download or update the local JLCPCB component parts database cache (SQLite).",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.duplicate_component": {
+      "fn": "Duplicate an existing footprint at a new position via KiCAD IPC.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.duplicate_sheet": {
+      "fn": "Copy an existing sheet and its child .kicad_sch file under a new name/file, o…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.edit_board_footprint_graphic": {
+      "fn": "Replace the vertices of a polygon inside a footprint placed on the board, sel…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.edit_component": {
+      "fn": "Update the value or other properties of a placed footprint via KiCAD IPC.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.edit_footprint_pad": {
+      "fn": "Edit the size, shape, position, drill, or zone connection of a pad in an exis…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.edit_schematic_component": {
+      "fn": "Update fields (Reference, Value, Footprint, custom properties) consistently a…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.edit_sheet": {
+      "fn": "Rename, resize, reposition, or repoint (Sheetfile) an existing sheet.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.edit_sheet_pin": {
+      "fn": "Rename a sheet pin, change its electrical type, move it, or move it to a diff…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.enrich_datasheets": {
+      "fn": "Fetch and cache datasheet URLs for all components in a schematic using the LC…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.estimate_cost": {
+      "fn": "Estimate the total manufacturing cost for PCB fabrication and assembly at a g…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_3d": {
+      "fn": "Export the PCB as a 3D model (STEP or VRML) using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_bom": {
+      "fn": "Generate a Bill of Materials (BOM) CSV from the schematic's component data.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_dxf": {
+      "fn": "Export the PCB to DXF using kicad-cli, one file per requested layer.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_gencad": {
+      "fn": "Export the PCB in GenCAD format using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_gerber": {
+      "fn": "Export Gerber production files using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_ipc2581": {
+      "fn": "Export the PCB in IPC-2581 format using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_manufacturing_package": {
+      "fn": "Generate ALL files needed for PCB fabrication and assembly in one call: Gerbe…",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_netlist": {
+      "fn": "Export the PCB netlist to a file in KiCAD or IPC-D-356 format.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_netlist_summary": {
+      "fn": "Return a human-readable JSON summary of the schematic netlist: all components…",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_odb": {
+      "fn": "Export the PCB in ODB++ format using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_pdf": {
+      "fn": "Export the PCB layout to a PDF file using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_position_file": {
+      "fn": "Generate a component placement (pick-and-place) position file for SMT assembl…",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_schematic_pdf": {
+      "fn": "Export a schematic sheet to a PDF file using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.find_component": {
+      "fn": "Find a footprint on the board by reference designator and return its position.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_board_extents": {
+      "fn": "Return the bounding box of all objects on the board (tries KiCAD IPC, falls b…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_schematic_svg": {
+      "fn": "Export a schematic sheet to an SVG file using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_specctra_dsn": {
+      "fn": "Export a deterministic Specctra DSN routing job from the exact live KiCad PCB…",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.export_svg": {
+      "fn": "Export the PCB layout to an SVG file using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.find_orphan_items": {
+      "fn": "Find dangling wire ends, floating labels, and unconnected pin endpoints.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.find_shorted_nets": {
+      "fn": "Detect accidentally merged nets — distinct net names that KiCad nets together…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.find_single_pin_nets": {
+      "fn": "Find nets that reach at most one pin — often a missing counterpart, an orphan…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.fix_connectivity": {
+      "fn": "Scan the schematic for near-miss wire endpoints (within snap_tolerance of a p…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.flip_component": {
+      "fn": "Set a placed footprint to F.Cu or B.Cu.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.generate_netlist": {
+      "fn": "Generate a KiCAD netlist file from the schematic using kicad-cli.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_board_2d_view": {
+      "fn": "Render the board with kicad-cli and return it as a base64 PNG.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_board_info": {
+      "fn": "Return metadata about the PCB: title, revision, company, layer count, paper s…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_board_stackup": {
+      "fn": "Read the physical stackup of the board KiCad holds open: each layer's type, t…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_component_list": {
+      "fn": "List all footprints on the board with their positions, layers, and values.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_component_nets": {
+      "fn": "Get all nets connected to every pin of a component.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_connected_items": {
+      "fn": "Get all wires, labels, and components connected to a given component referenc…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_component_pads": {
+      "fn": "Return live board-space pad positions, effective rotations, physical geometry…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_datasheet_url": {
+      "fn": "Retrieve the datasheet URL for a component by MPN or LCSC ID.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_design_rules": {
+      "fn": "Return the current design rule constraints defined in the sibling KiCAD proje…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_drc_violations": {
+      "fn": "Run the Design Rule Check (DRC) on the PCB and return a list of violations.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_editor_selection": {
+      "fn": "Read the current selection from one exact KiCad editor, project, document, an…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_editor_state": {
+      "fn": "Observe the configured KiCad IPC endpoint: running KiCad version, addressable…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_effective_config": {
+      "fn": "Return the merged configuration (user defaults + project overrides).",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_footprint_info": {
+      "fn": "Return detailed information about a footprint: pad layout, courtyard, descrip…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_installation_info": {
+      "fn": "Report read-only provenance for the Konnect process serving this call: build …",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_jlcpcb_database_stats": {
+      "fn": "Return statistics about the local JLCPCB database cache: part count, last upd…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_jlcpcb_part": {
+      "fn": "Retrieve full details for a single JLCPCB part by its LCSC part number.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_layer_list": {
+      "fn": "Return the board's enabled layers with their names and types.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_net_components": {
+      "fn": "Get all components (and their pins) connected to a named net.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_net_connections": {
+      "fn": "Get all pins and labels connected to a named net.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_net_connectivity": {
+      "fn": "Build the full connectivity graph for a net using union-find.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_netclasses": {
+      "fn": "Read every netclass in the project's design rules, with its settings, its net…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_nets_list": {
+      "fn": "Return all nets defined on the PCB via KiCAD IPC.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_pad_position": {
+      "fn": "Return the live board-space position, effective rotation, physical geometry, …",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_schematic_wires": {
+      "fn": "List all wire segments in a schematic with start/end coordinates and UUIDs.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_pin_connections": {
+      "fn": "Get the net connected to a specific pin on a component by tracing wires from …",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_pin_net_name": {
+      "fn": "Return just the net name for a specific pin on a component.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_predefined_sizes": {
+      "fn": "Return the PCB editor Pre-defined Sizes list from the sibling .kicad_pro: tra…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_project_info": {
+      "fn": "Read project metadata from a .kicad_pro file.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_recent_calls": {
+      "fn": "Return the most recent tool calls this session (newest first) with call_id, t…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_schematic_component": {
+      "fn": "Get a component's shared properties and every placed unit's position.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_schematic_layout": {
+      "fn": "Return a compact spatial summary of the schematic: component positions, trans…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_schematic_pin_locations": {
+      "fn": "Get the exact schematic-space (X,Y) coordinates of every pin on every placed …",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_schematic_view": {
+      "fn": "Render a schematic sheet with kicad-cli and return the path to the SVG it wro…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_sheet_hierarchy": {
+      "fn": "Recursively walk the sheet tree starting from a schematic file, returning nes…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_symbol_info": {
+      "fn": "Return detailed information about a schematic symbol: pins, properties, descr…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.get_template": {
+      "fn": "Get full details for a reference circuit template including all components, c…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.group_components": {
+      "fn": "Add or update a group property on every placed unit of multiple components.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.import_sheet_pins": {
+      "fn": "Scan the child sheet's hierarchical_labels and auto-generate matching pins on…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.import_svg_logo": {
+      "fn": "Import an SVG file as filled silkscreen or copper artwork (a logo, icon, or o…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.launch_kicad_ui": {
+      "fn": "Launch the KiCAD GUI application and optionally open a project file.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_board_footprint_graphics": {
+      "fn": "List the graphic items inside a footprint placed on the board — silkscreen, f…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_design_rules": {
+      "fn": "List all active design rules (user-level + project-level).",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_footprint_libraries": {
+      "fn": "List all registered footprint libraries (global and optionally project-level).",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_template_categories": {
+      "fn": "List all available template categories and the number of templates in each.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_library_footprints": {
+      "fn": "List all footprints in a specific registered footprint library (.pretty direc…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_schematic_components": {
+      "fn": "List all symbol instances in a schematic with their positions, values, footpr…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_schematic_labels": {
+      "fn": "List all label instances (net_label, global_label, hierarchical_label) with t…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_schematic_nets": {
+      "fn": "List all distinct net names derived from net labels, global labels, and power…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_symbol_libraries": {
+      "fn": "List all registered symbol libraries (global and optionally project-level).",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_symbols_in_library": {
+      "fn": "List all symbol names defined in a .kicad_sym library file.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.list_toolboxes": {
+      "fn": "List all available KiCAD toolsets with descriptions, categories, tool counts,…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.load_project_config": {
+      "fn": "Load project-specific configuration from <project_dir>/.konnect/project.json.",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.load_user_config": {
+      "fn": "Load the user's global Konnect preferences.",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.modify_trace": {
+      "fn": "Modify a trace segment by deleting and re-adding it with new parameters.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.move_component": {
+      "fn": "Move a placed footprint to a new X/Y position.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.move_connected": {
+      "fn": "REFUSED until implemented: moving a symbol while stretching its connected wir…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.move_labels_by_offset": {
+      "fn": "Move all labels matching a net name by a given X/Y offset.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.move_region": {
+      "fn": "Move all symbol units whose origins are within a bounding box by a given offs…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.move_schematic_component": {
+      "fn": "Move a component's lowest-numbered unit to a new position and translate every…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.move_sheet": {
+      "fn": "Reposition a sheet on the parent canvas without touching any other field.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.mutate_editor_selection": {
+      "fn": "Clear, add to, or remove from one exact KiCad editor selection.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.open_schematic_viewer": {
+      "fn": "Launch the live schematic viewer.",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.save_project": {
+      "fn": "Save the currently open PCB board file via KiCAD IPC.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.place_component": {
+      "fn": "Place a footprint on the PCB.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.place_component_array": {
+      "fn": "Place multiple copies of a footprint in a grid or line array via KiCAD IPC.",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.place_decoupling_caps": {
+      "fn": "Plan (and optionally apply) a row of decoupling capacitors beside an IC, from…",
+      "when": "新建/放置；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.plan_bga_fanout": {
+      "fn": "Plan a BGA fanout: outer-ring pads escape directly; each inner pad gets a via…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.plan_specctra_ses_import": {
+      "fn": "Validate a Freerouting Specctra SES against its revision-bound Konnect manife…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.query_traces": {
+      "fn": "List trace segments on the board, optionally filtered by net and/or layer.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.refill_zones": {
+      "fn": "Refill all copper pour zones on the board.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.refine_placement_force_directed": {
+      "fn": "DEPRECATED: diagnose an existing deterministic spring-embedder plan; do not u…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.register_footprint_library": {
+      "fn": "Register a local footprint library directory in the KiCAD global or project l…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.register_symbol_library": {
+      "fn": "Register a .kicad_sym library file in the KiCAD global or project symbol tabl…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.reload_server": {
+      "fn": "Replace this standalone Unix stdio server with the verified Konnect binary no…",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.renumber_sheet_pages": {
+      "fn": "Walk the whole sheet tree from a root schematic and reassign sequential page …",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.server_stats": {
+      "fn": "Return server uptime, total/error call counts, per-tool statistics, and the p…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.rename_project": {
+      "fn": "Rename a KiCAD project: renames the .kicad_pro/.kicad_sch/.kicad_pcb/.kicad_p…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.render_schematic_png": {
+      "fn": "Render a schematic sheet to PNG: kicad-cli SVG export rasterized in-process (…",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.repair_corrupted_footprints": {
+      "fn": "Repair the exact legacy corruption from Konnect issue #244: footprint drawing…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.replace_component": {
+      "fn": "Replace every placed unit of a component with a new library symbol while pres…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.reset_schematic_field_positions": {
+      "fn": "Move each placed symbol's Reference and Value text back to the position its l…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.resolve_cross_probe_target": {
+      "fn": "Resolve an exact schematic-symbol/PCB-footprint relationship in either direct…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.resolve_navigation_target": {
+      "fn": "Deterministically resolve one exact saved KiCad object in an explicitly open …",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.rotate_component": {
+      "fn": "Set the rotation angle of a placed footprint.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.rotate_schematic_component": {
+      "fn": "Set the lowest-numbered unit's absolute rotation and rotate every other place…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.rotate_schematic_label": {
+      "fn": "Rotate a net label to a new angle and update its justify direction accordingl…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.route_differential_pair": {
+      "fn": "Route a differential pair (two parallel traces with a specified gap).",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.route_pad_to_pad": {
+      "fn": "Route a direct trace between two pads of named components (L-bend routing) vi…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.route_specctra_dsn": {
+      "fn": "Route an existing Specctra DSN through the local Freerouting JAR's native hea…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.route_trace": {
+      "fn": "Route a trace segment between two points on a copper layer via KiCAD IPC.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.run_design_review": {
+      "fn": "Run all available audit checks and produce a consolidated design review repor…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.run_drc": {
+      "fn": "Run the Design Rule Check on the PCB and return structured violation results,…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.run_erc": {
+      "fn": "Run the Electrical Rules Check (ERC) on the schematic via kicad-cli and retur…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.save_project_config": {
+      "fn": "Save a project-specific rule or override.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.save_user_config": {
+      "fn": "Update a user preference.",
+      "when": "导出/落盘；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.score_placement": {
+      "fn": "Score a board's footprint placement: scores 0-100 and explains every deductio…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.search_footprints": {
+      "fn": "Search for footprints across all registered libraries by name or keyword.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.search_jlcpcb_parts": {
+      "fn": "Search the local JLCPCB component database by keyword, value, or category.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.search_symbols": {
+      "fn": "Search for symbols across all registered libraries by name or keyword.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.search_templates": {
+      "fn": "Search the reference circuit template library.",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_active_layer": {
+      "fn": "Request an editor active-layer change.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_board_size": {
+      "fn": "Add a rectangular board outline of the given dimensions on the Edge.Cuts laye…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_component_placements": {
+      "fn": "Set X/Y positions and rotations for multiple existing footprints atomically.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_design_rules": {
+      "fn": "Set board-level design rules (clearance, trace width, via size) in the siblin…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_footprint_graphics": {
+      "fn": "Atomically append, replace, or delete graphical primitives on one layer of an…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_footprint_metadata": {
+      "fn": "Atomically replace a footprint's description, tags, or supported attributes w…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.split_wire_at_point": {
+      "fn": "Split a wire at a given point, creating two wire segments and a junction.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_footprint_models": {
+      "fn": "Atomically append, replace, or delete top-level 3D model blocks in an existin…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_layer_constraints": {
+      "fn": "Set per-layer design constraints (e.g.",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_placed_footprint_models": {
+      "fn": "Inspect, append, replace, or remove one exact 3D-model entry on a placed foot…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_predefined_sizes": {
+      "fn": "Write the PCB editor Pre-defined Sizes list (track widths and via pad/drill p…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_schematic_page": {
+      "fn": "Set the sheet's paper size (A0-A5, A-E, USLetter, USLegal, USLedger) and orie…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.set_visual_baseline": {
+      "fn": "Capture the current render of a schematic sheet as its visual baseline, store…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.snapshot_project": {
+      "fn": "Export the schematic and PCB to PDF as a timestamped snapshot/checkpoint.",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.suggest_jlcpcb_alternatives": {
+      "fn": "Suggest JLCPCB-stocked alternative parts for a given component value and foot…",
+      "when": "按需使用；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.trace_from_point": {
+      "fn": "Trace connectivity from any (X,Y) point — returns the wires, labels, componen…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.unload_toolset": {
+      "fn": "Unload a toolset to remove its tools from the active session.",
+      "when": "会话/文档管理；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.validate_for_manufacturing": {
+      "fn": "Pre-flight check before ordering: verifies the design is ready for the target…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.update_footprints_from_library": {
+      "fn": "Plan or atomically apply KiCad's Update Footprints from Library operation to …",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.update_pcb_from_schematic": {
+      "fn": "Plan or atomically apply saved schematic hierarchy changes to the live KiCad …",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.update_symbols_from_library": {
+      "fn": "Re-embed placed symbols' definitions from their libraries, like KiCad's 'Upda…",
+      "when": "修改已有对象；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.validate_component_connections": {
+      "fn": "Check that every connectable pin on every component has at least one wire or …",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.validate_sheet_pins": {
+      "fn": "Read-only. Walk the whole sheet tree from a root schematic and report hierarc…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "konnect.validate_wire_connections": {
+      "fn": "Check all wire endpoints for floating ends (not connected to a pin, label, or…",
+      "when": "只读查询/分析；KiCAD 编辑通道；同一能力优先看 lceda-tools 或 kicad 通道是否更稳"
+    },
+    "kicad-gui.add_board_outline": {
+      "fn": "Draw the PCB board outline (Edge.Cuts layer) as a rectangle, rounded rectangl…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_board_text": {
+      "fn": "Add a text label to a PCB layer (e.g.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_component_3d_model": {
+      "fn": "Attach a 3D model to one or more PLACED footprints on the open board, live vi…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_component_annotation": {
+      "fn": "Add a text annotation or comment to a PCB component.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_copper_pour": {
+      "fn": "Add a copper pour (ground/power plane) to the PCB",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_footprint_3d_model": {
+      "fn": "Attach (or replace) a 3D model — .step/.stp/.wrl — to a .kicad_mod footprint …",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_gnd_stitching_vias": {
+      "fn": "Drop GND stitching vias across the board with collision checking against ever…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_layer": {
+      "fn": "Add a new copper or technical layer to the PCB stackup.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.check_kicad_ui": {
+      "fn": "Check if KiCAD UI is currently running",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_hierarchical_sheet": {
+      "fn": "Insert a hierarchical-sheet reference block into a parent schematic, pointing…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_library_symbol_property": {
+      "fn": "Add or update a custom property (Manufacturer, MPN, LCSC, etc.) on a symbol d…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_mounting_hole": {
+      "fn": "Place a mounting hole (NPTH or PTH) at the specified position on the PCB.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_net": {
+      "fn": "Create a new net on the PCB",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_no_connect": {
+      "fn": "Add a no-connect flag (X marker) to a pin that is intentionally left unconnec…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_schematic_component": {
+      "fn": "Add a component to the schematic.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_schematic_hierarchical_label": {
+      "fn": "Add a hierarchical label (sheet interface port) to a sub-sheet schematic.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_schematic_net_label": {
+      "fn": "Add a net label to the schematic.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_schematic_text": {
+      "fn": "Add a free-form text annotation to the schematic.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_schematic_wire": {
+      "fn": "Draws a wire on the schematic between two or more coordinate points.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_sheet_pin": {
+      "fn": "Add a pin to a sheet symbol block on the parent schematic.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_symbol_property": {
+      "fn": "Add or update a custom property (Manufacturer, MPN, LCSC, etc.) on a symbol i…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_via": {
+      "fn": "Add a via to the PCB",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.add_zone": {
+      "fn": "Create a copper fill zone (pour) on a PCB layer for a specified net.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.align_components": {
+      "fn": "Align multiple PCB components horizontally, vertically or on a grid with opti…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.annotate_schematic": {
+      "fn": "Assign reference designators to unannotated components (R?",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.assign_net_to_class": {
+      "fn": "Assign a net to an existing net class to apply its specific design rules.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.autoplace_schematic_fields": {
+      "fn": "Automatically reposition every component's Reference and Value field so they …",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.backannotate_footprints": {
+      "fn": "Copy footprint assignments from a .kicad_pcb back into the schematic's Footpr…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.check_freerouting": {
+      "fn": "Check if Java and Freerouting JAR are available on the system.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.clear_board_outline": {
+      "fn": "Delete all Edge.Cuts graphics from the current PCB board.",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.autoroute": {
+      "fn": "Run Freerouting autorouter on the current PCB.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.batch_add_and_connect": {
+      "fn": "Place multiple components AND wire their nets in a single call — the fewest-r…",
+      "when": "批量操作；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.batch_add_components": {
+      "fn": "Add multiple components to a schematic in one call (far fewer round-trips tha…",
+      "when": "批量操作；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.batch_add_no_connects": {
+      "fn": "Add no-connect (X) flags to multiple pins in one call, to mark intentionally …",
+      "when": "批量操作；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.batch_connect": {
+      "fn": "Place net labels on multiple pins in one call to wire nets quickly.",
+      "when": "批量操作；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.batch_edit_schematic_components": {
+      "fn": "Edit multiple existing components in one call.",
+      "when": "批量操作；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.batch_list_symbol_pins": {
+      "fn": "Return pin names, numbers, types, and symbol-local coordinates for multiple s…",
+      "when": "批量操作；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.batch_move_components": {
+      "fn": "Move multiple PCB components transactionally.",
+      "when": "批量操作；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.batch_set_schematic_property_positions": {
+      "fn": "Move many Reference/Value field labels in a single file read/write — far fast…",
+      "when": "批量操作；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.check_clearance": {
+      "fn": "Check the actual clearance between two PCB items (track, via, pad, zone or co…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.check_courtyard_overlaps": {
+      "fn": "Detect courtyard overlaps between footprints and (optionally) flag courtyards…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.check_placement_clearance": {
+      "fn": "Classify placement conflicts as body overlap, courtyard overlap, keepout viol…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.close_project": {
+      "fn": "Close the currently loaded KiCAD project: optionally save, then drop the in-m…",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.close_toolbox": {
+      "fn": "Close one or more toolboxes to remove their tools from your tool list and fre…",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.connect_passthrough": {
+      "fn": "Connects all pins of a source connector (e.g.",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.create_board_from_schematic": {
+      "fn": "Create a new .kicad_pcb file from a schematic, then update the PCB from that …",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.connect_to_net": {
+      "fn": "Connect a component pin to a named net by adding a wire stub and net label at…",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.copy_routing_pattern": {
+      "fn": "Copy routing pattern (traces and vias) from a group of source components to a…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.create_footprint": {
+      "fn": "Create a new KiCAD footprint (.kicad_mod) inside a .pretty library directory.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.create_hierarchical_subsheet": {
+      "fn": "Create a new sub-sheet .kicad_sch file and link it into a parent schematic in…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.create_netclass": {
+      "fn": "Create a new net class with custom design rules, optionally assigning nets to…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.create_project": {
+      "fn": "Create a new KiCAD project",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.create_schematic": {
+      "fn": "Create a new schematic",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.delete_graphic": {
+      "fn": "Delete a PCB graphic/drawing item by UUID.",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.create_symbol": {
+      "fn": "Create a new schematic symbol in a .kicad_sym library file (created if missin…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.delete_component": {
+      "fn": "Remove a component from the PCB by its reference designator.",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.delete_schematic_component": {
+      "fn": "Remove a placed symbol from a KiCAD schematic (.kicad_sch).",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.delete_schematic_net_label": {
+      "fn": "Remove a net label from the schematic.",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.delete_schematic_wire": {
+      "fn": "Remove a wire from the schematic by start and end coordinates.",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.delete_symbol": {
+      "fn": "Remove a symbol from a .kicad_sym library file.",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.delete_trace": {
+      "fn": "Delete traces from the PCB.",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.digikey_check_library_availability": {
+      "fn": "Look up every symbol in a .kicad_sym on Digi-Key and report which parts are o…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.digikey_search_parts": {
+      "fn": "Search Digi-Key by part number, manufacturer part number, or a parametric phr…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.digikey_test_connection": {
+      "fn": "Verify that the server's Digi-Key credentials work: fetch a token and run one…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.discard_or_reload": {
+      "fn": "Discard the current in-memory PCB state and reload the board from disk.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.download_jlcpcb_database": {
+      "fn": "Download the JLCPCB parts catalog to a local SQLite database for fast offline…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.duplicate_component": {
+      "fn": "Duplicate an existing PCB component at an offset position, optionally with a …",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.edit_component": {
+      "fn": "Edit properties of an existing PCB component (reference, value, footprint).",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.enrich_datasheets": {
+      "fn": "Fill in missing Datasheet URLs in a KiCAD schematic using LCSC part numbers.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.estimate_airwire_lengths": {
+      "fn": "Alias for get_ratsnest: estimate airwire segments and lengths by net.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_dsn": {
+      "fn": "Export the current PCB to Specctra DSN format.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_jlcpcb_database_stats": {
+      "fn": "Get statistics about the local JLCPCB parts database",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.edit_footprint_pad": {
+      "fn": "Edit an existing pad inside a .kicad_mod footprint file.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.edit_schematic_component": {
+      "fn": "Update properties of a placed symbol in a KiCAD schematic (.kicad_sch) in-pla…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_3d": {
+      "fn": "Export the PCB as a 3D model (STEP, STL, VRML or OBJ) including optional copp…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_bom": {
+      "fn": "Export a Bill of Materials (BOM) from the PCB in CSV, XML, HTML or JSON forma…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_drill": {
+      "fn": "Generate drill files for a PCB via kicad-cli, exposing the full Excellon/Gerb…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_3d_cli": {
+      "fn": "Export a 3D model of the PCB via kicad-cli.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_gencad": {
+      "fn": "Export the PCB in GenCAD format via kicad-cli.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_gerber": {
+      "fn": "Export PCB Gerber manufacturing files to a directory.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_gerber_single": {
+      "fn": "Plot the given layers to a SINGLE Gerber file via kicad-cli (`pcb export gerb…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_ipcd356": {
+      "fn": "Generate an IPC-D-356 bare-board electrical-test netlist via kicad-cli.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_netlist": {
+      "fn": "Export the schematic netlist to a file using kicad-cli.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_backend_state": {
+      "fn": "Return the active backend, realtime status, loaded project/board paths, and d…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_gerbers": {
+      "fn": "Plot Gerber files for a PCB via kicad-cli, exposing the full Plot-dialog opti…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_ipc2581": {
+      "fn": "Export the PCB in IPC-2581 format via kicad-cli.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_odb": {
+      "fn": "Export the PCB in ODB++ format via kicad-cli.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_pcb_dxf": {
+      "fn": "Plot the PCB layout to DXF via kicad-cli, exposing the full layer-plot option…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_pdf": {
+      "fn": "Export the PCB layout as a PDF document, optionally selecting layers, page si…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_position_file": {
+      "fn": "Export a component placement/position file (pick-and-place) for PCB assembly …",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_board_info": {
+      "fn": "Retrieve general information about the current PCB board (dimensions, layer c…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_pcb_pdf": {
+      "fn": "Plot the PCB layout to PDF via kicad-cli, exposing the full layer-plot option…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_pcb_svg": {
+      "fn": "Plot the PCB layout to SVG via kicad-cli, exposing the full layer-plot option…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_pos": {
+      "fn": "Generate a component placement (position / pick-and-place) file via kicad-cli…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_sch_bom": {
+      "fn": "Generate a Bill of Materials from a schematic via kicad-cli (`sch export bom`…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_schematic_pdf": {
+      "fn": "Export schematic to PDF format using kicad-cli.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_sch_dxf": {
+      "fn": "Export a schematic to DXF via kicad-cli (`sch export dxf`), one DXF per page …",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_sch_hpgl": {
+      "fn": "Export a schematic to HPGL via kicad-cli (`sch export hpgl`), one plot per pa…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_sch_pdf": {
+      "fn": "Export a schematic to PDF via kicad-cli (`sch export pdf`), exposing the full…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_sch_ps": {
+      "fn": "Export a schematic to PostScript via kicad-cli (`sch export ps`), one PS per …",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_sch_python_bom": {
+      "fn": "Export the legacy Python-BOM intermediate XML from a schematic via kicad-cli …",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_sch_svg": {
+      "fn": "Export a schematic to SVG via kicad-cli (`sch export svg`), one SVG per page …",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_schematic_svg": {
+      "fn": "Export schematic to SVG format using kicad-cli.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_svg": {
+      "fn": "Export the PCB layout as an SVG vector image, optionally selecting layers and…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_symbol": {
+      "fn": "Extract a single symbol from a .kicad_sym library into a standalone .kicad_sy…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.export_vrml": {
+      "fn": "Export the PCB as a VRML 3D model for use in web viewers or simulation tools.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_board_origin": {
+      "fn": "Read back the auxiliary (drill/place) origin and grid origin of a .kicad_pcb …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.find_component": {
+      "fn": "Search for a PCB component by reference designator or value and return its po…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.find_duplicate_symbols": {
+      "fn": "Group symbols in a .kicad_sym that are the same part stored twice under diffe…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.find_orphaned_wires": {
+      "fn": "Find wire segments with at least one dangling endpoint — not connected to a c…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.find_overlapping_elements": {
+      "fn": "Detect spatially overlapping symbols, wires, and labels in the schematic.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.find_wires_crossing_symbols": {
+      "fn": "Find all wires that cross over component symbol bodies.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.generate_netlist": {
+      "fn": "Return a structured JSON netlist from the schematic — component list (referen…",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_board_2d_view": {
+      "fn": "Render a 2D image of the PCB using kicad-cli.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_board_extents": {
+      "fn": "Return the bounding box (min/max X and Y) of all objects on the current PCB b…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_component_geometry": {
+      "fn": "Return separated footprint geometry bboxes: body, pads, courtyard, keepout, f…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_component_list": {
+      "fn": "Return a list of all components on the PCB, optionally filtered by layer or b…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_component_pads": {
+      "fn": "Return all pads of a PCB component with their positions, net assignments and …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_component_properties": {
+      "fn": "Return all properties of a PCB component (position, rotation, layer, value, f…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_datasheet_url": {
+      "fn": "Get the LCSC datasheet URL for a component by LCSC number.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_design_rules": {
+      "fn": "Return the current PCB design rules (clearance, track width, via sizes, court…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_drc_violations": {
+      "fn": "Return the list of current DRC violations on the PCB, optionally filtered by …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_footprint_info": {
+      "fn": "Get detailed information about a specific footprint",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_elements_in_region": {
+      "fn": "List all symbols, wires, and labels within a rectangular region of the schema…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_jlcpcb_part": {
+      "fn": "Get detailed information about a specific JLCPCB part by LCSC number.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_layer_list": {
+      "fn": "Return the list of all layers defined in the current PCB board.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_net_at_point": {
+      "fn": "Returns the net name at a given (x, y) coordinate in a schematic, or null if …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_net_connections": {
+      "fn": "Get all connections for a named net",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_net_pads": {
+      "fn": "Return every PCB pad attached to a net name or net code.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_nets_list": {
+      "fn": "Get a list of all nets in the PCB with optional statistics.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_pad_position": {
+      "fn": "Return the exact XY position of a specific pad on a PCB component.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_pads": {
+      "fn": "Return pads for one PCB component, selected refs, or all components, includin…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_project_info": {
+      "fn": "Get information about the current KiCAD project",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_ratsnest": {
+      "fn": "Estimate ratsnest/airwire segments and lengths from current pad positions gro…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_schematic_component": {
+      "fn": "Get full component info from a schematic: position, every field's value, and …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_schematic_pin_locations": {
+      "fn": "Returns the exact x/y coordinates of every pin on a schematic component.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_schematic_view": {
+      "fn": "Return a rasterized image of the schematic (PNG by default, or SVG).",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_schematic_view_region": {
+      "fn": "Export a cropped region of the schematic as an image (PNG or SVG).",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_sheet_properties": {
+      "fn": "List hierarchical sheets in a schematic with their name, file, uuid, position…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_symbol_info": {
+      "fn": "Get detailed information about a specific symbol (global or project-scope whe…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.import_ses": {
+      "fn": "Import a Specctra SES (session) file into the current PCB.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.get_wire_connections": {
+      "fn": "Returns the net name and all wires and component pins connected at a given po…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.group_components": {
+      "fn": "Group multiple PCB components together by name for easier selection and manip…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.hierarchical_place": {
+      "fn": "Cluster a board's footprints by their schematic-sheet hierarchy (the HierPlac…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.import_3d_model": {
+      "fn": "Copy a 3D model file (.step/.stp/.wrl/.x3d/.iges) into the project's *.3dshap…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.import_eagle_project": {
+      "fn": "Import an Eagle project (.brd + .sch) and convert it to a KiCad project.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.import_pcb": {
+      "fn": "Import a vendor PCB file (PADS, Altium, Eagle, CADSTAR, Fabmaster, P-CAD, Sol…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.import_svg_logo": {
+      "fn": "Imports an SVG file as filled graphic polygons onto a KiCAD PCB layer (defaul…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.import_symbol": {
+      "fn": "Copy a symbol from one .kicad_sym library into another, with optional rename …",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.is_dirty": {
+      "fn": "Return whether the MCP knows the loaded board has unsaved memory changes or e…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.launch_kicad_ui": {
+      "fn": "Launch KiCAD UI, optionally with a project file",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.lint_offgrid": {
+      "fn": "Report every off-grid connection-relevant coordinate in a schematic — wire/bu…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.lint_schematic_cosmetic": {
+      "fn": "Netlist-safe cosmetic cleanup of a .kicad_sch, applied as raw-text edits that…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.refill_zones": {
+      "fn": "Refill all copper zones on the board.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_floating_labels": {
+      "fn": "Returns all net labels in the schematic that are not connected to any compone…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_footprint_libraries": {
+      "fn": "List available .pretty footprint libraries and their contents (first 20 footp…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_graphics": {
+      "fn": "List PCB graphic/drawing items such as gr_line, gr_arc, gr_rect, gr_text and …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_libraries": {
+      "fn": "List all available KiCAD footprint libraries",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_library_footprints": {
+      "fn": "List all footprints in a specific KiCAD library",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_library_symbols": {
+      "fn": "List all symbols in a specific KiCAD symbol library (global or project-scope …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_library_table": {
+      "fn": "Read a sym-lib-table or fp-lib-table: nickname, type, URI and description of …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_schematic_components": {
+      "fn": "List all components in a schematic with their references, values, positions, …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_schematic_labels": {
+      "fn": "List all net labels, global labels, and power flags in the schematic.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_schematic_nets": {
+      "fn": "List all nets in the schematic with their connections.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_schematic_texts": {
+      "fn": "List all free-form text annotations (notes, headings, documentation strings) …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_schematic_wires": {
+      "fn": "List all wires in the schematic with start/end coordinates.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_symbol_libraries": {
+      "fn": "List all available KiCAD symbol libraries from global sym-lib-table, plus the…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_symbol_pins": {
+      "fn": "Return pin names, numbers, and types for a symbol directly from the library —…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_symbols_in_library": {
+      "fn": "List all symbol names in a .kicad_sym library file.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.list_toolboxes": {
+      "fn": "List the toolboxes: groups of related KiCad tools, each with a description, i…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.modify_trace": {
+      "fn": "Modify an existing trace (change width, layer, or net).",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.move_component": {
+      "fn": "Move a PCB component to a new position.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.move_footprint_text": {
+      "fn": "Move or update a footprint Reference/Value/user text field without moving the…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.move_schematic_component": {
+      "fn": "Move a placed symbol to a new position in the schematic.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.move_schematic_net_label": {
+      "fn": "Move a net label (local, global, or hierarchical) to a new position in the sc…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.open_board": {
+      "fn": "Open a specific .kicad_pcb board file and refresh the MCP in-memory board sta…",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.open_project": {
+      "fn": "Open an existing KiCAD project",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.open_toolbox": {
+      "fn": "Open one or more toolboxes (see list_toolboxes) to add their tools to your to…",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.place_component": {
+      "fn": "Place a footprint component onto the PCB at the specified position.",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.place_component_array": {
+      "fn": "Place a rectangular grid array of identical components on the PCB with config…",
+      "when": "新建/放置；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.query_traces": {
+      "fn": "Query traces on the board with optional filters by net, layer, or bounding bo…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.query_zones": {
+      "fn": "Query copper zones (filled pours) on the board with optional filters by net, …",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.register_footprint_library": {
+      "fn": "Register a .pretty footprint library in KiCAD's fp-lib-table so KiCAD can fin…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.register_symbol_library": {
+      "fn": "Register a .kicad_sym library in KiCAD's sym-lib-table so symbols can be used…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.reload_board": {
+      "fn": "Reload the current or specified .kicad_pcb from disk, discarding stale in-mem…",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.remove_hierarchical_sheet": {
+      "fn": "Remove a hierarchical-sheet reference from a parent schematic (the reverse of…",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.remove_library_table_entry": {
+      "fn": "Remove one or more entries from a sym-lib-table or fp-lib-table by nickname —…",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.remove_schematic_component_property": {
+      "fn": "Remove a single custom property from a placed schematic symbol.",
+      "when": "删除（不可逆，删前先读）；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.rename_symbol": {
+      "fn": "Rename a symbol in a .kicad_sym library, including its sub-symbol shards (nam…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.repair_flat_symbols": {
+      "fn": "Repair \"flat\" vendor symbols so schematic tools can parse the file.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.replace_board_outline": {
+      "fn": "Replace the current Edge.Cuts board outline with a rectangle, rounded rectang…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.replace_component": {
+      "fn": "Replace an existing PCB component with a different component type, optionally…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.replace_instance_lib_ids": {
+      "fn": "Replace lib_id references in schematic symbol instances per an explicit old-t…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.replace_schematic_component": {
+      "fn": "Replace a placed component's symbol with a different one (e.g.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.rotate_component": {
+      "fn": "Rotate a PCB component to an absolute angle in degrees.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.rotate_schematic_component": {
+      "fn": "Rotate a placed symbol in the schematic.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.route_arc_trace": {
+      "fn": "Route a copper arc trace defined by start/mid/end points.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.route_differential_pair": {
+      "fn": "Route a differential pair as two parallel straight segments.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.route_pad_to_pad": {
+      "fn": "PREFERRED tool for pad-to-pad routing.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.route_trace": {
+      "fn": "Route a trace segment between two XY points on a fixed layer.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.run_drc": {
+      "fn": "Run the KiCAD Design Rule Check (DRC) on the current PCB and return violation…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.run_erc": {
+      "fn": "Runs the KiCAD Electrical Rules Check (ERC) on a schematic and returns all vi…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.save_as": {
+      "fn": "Save the current PCB board to a new .kicad_pcb path.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.save_board": {
+      "fn": "Save the current PCB board.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_active_layer": {
+      "fn": "Set the currently active PCB layer by name (e.g.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.save_project": {
+      "fn": "Save the current KiCAD project.",
+      "when": "导出/落盘；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.search_footprints": {
+      "fn": "Search for footprints matching a pattern across all libraries",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.search_jlcpcb_parts": {
+      "fn": "Search JLCPCB parts catalog by specifications.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.search_symbols": {
+      "fn": "Search for symbols in local KiCAD symbol libraries.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.search_tools": {
+      "fn": "Search all available KiCAD tools by keyword.",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_board_origin": {
+      "fn": "Set the auxiliary (drill/place) origin and/or grid origin of a .kicad_pcb.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_board_size": {
+      "fn": "Set the PCB board dimensions (width and height) in the specified unit.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_design_rules": {
+      "fn": "Configure PCB design rules: clearance, track width, via dimensions and courty…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_footprint_type": {
+      "fn": "Set the placement type (through_hole / smd / unspecified) and optional exclus…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_layer_constraints": {
+      "fn": "Set per-layer design rule constraints (minimum track width, clearance and via…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_net_color": {
+      "fn": "Set or clear a net's display color override (the PCB editor's 'Net colors' pa…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.suggest_jlcpcb_alternatives": {
+      "fn": "Suggest alternative JLCPCB parts for a given component.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_library_table_uri": {
+      "fn": "Repoint an existing library-table entry at a different file, keeping its nick…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_schematic_component_property": {
+      "fn": "Add or update a single custom property on a placed schematic symbol.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_schematic_property_position": {
+      "fn": "Move a component's Reference or Value field label to an absolute (x, y) coord…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_sheet_property": {
+      "fn": "Add or update a custom property on a hierarchical sheet's (sheet ...) block —…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.set_symbol_pin_type": {
+      "fn": "Set the electrical type (and optionally the graphic style) of pins in a .kica…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.snap_to_grid": {
+      "fn": "Snap schematic element coordinates to the nearest grid point.",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.snapshot_project": {
+      "fn": "Save a named checkpoint snapshot of the current project state (renders board …",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.suggest_placement": {
+      "fn": "Propose an optimized PCB footprint placement that shortens net length, orient…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.suggest_schematic_declutter": {
+      "fn": "Re-orient overlapping net/global labels so their text lands in free space and…",
+      "when": "按需使用；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.sync_schematic_to_board": {
+      "fn": "Import the schematic netlist into the PCB board — equivalent to pressing F8 i…",
+      "when": "会话/文档管理；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.update_graphic": {
+      "fn": "Update common properties of a PCB graphic/drawing item by UUID.",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.update_symbol_from_library": {
+      "fn": "Refresh embedded lib_symbols cache entries from a KiCad symbol library (equiv…",
+      "when": "修改已有对象；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.validate_schematic": {
+      "fn": "Check that a .kicad_sch file is structurally sound, reporting the line and co…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad-gui.validate_symbol_library": {
+      "fn": "Check that a .kicad_sym file is structurally sound and will load, reporting t…",
+      "when": "只读查询/分析；KiCAD GUI 通道（需 KiCAD 已开且板已打开）"
+    },
+    "kicad.add_component_from_library": {
+      "fn": "Add a component from KiCad's built-in library to the schematic.",
+      "when": "新建/放置；见 describe"
+    },
+    "kicad.add_global_label": {
+      "fn": "Add a global label on a component pin (project-wide connection).",
+      "when": "新建/放置；见 describe"
+    },
+    "kicad.add_hierarchical_label": {
+      "fn": "Add a hierarchical label on a component pin (cross-sheet connection).",
+      "when": "新建/放置；见 describe"
+    },
+    "kicad.add_label": {
+      "fn": "Add a local label (text label) to the schematic.",
+      "when": "新建/放置；见 describe"
+    },
+    "kicad.add_wire": {
+      "fn": "Add a wire (connection line) to the schematic.",
+      "when": "新建/放置；见 describe"
+    },
+    "kicad.analyze_hierarchical_nets": {
+      "fn": "Analyze all nets in hierarchical schematic design.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.analyze_pcb_nets": {
+      "fn": "Analyze nets in a KiCad PCB file.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.analyze_pcb_power_integrity": {
+      "fn": "Analyze power integrity: copper zones, power net routing, GND coverage.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.analyze_pcb_signal_integrity": {
+      "fn": "Analyze signal integrity: diff pair matching, RF traces, critical nets.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.analyze_pin_functions": {
+      "fn": "Analyze pin functions and detect conflicts.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.create_kicad_project": {
+      "fn": "Create a new KiCad project.",
+      "when": "新建/放置；见 describe"
+    },
+    "kicad.detect_pin_conflicts": {
+      "fn": "Detect pins with conflicting electrical connections.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.download_registry_part": {
+      "fn": "Download a registry part's files into a local directory.",
+      "when": "导出/落盘；见 describe"
+    },
+    "kicad.export_drc_report": {
+      "fn": "Export DRC report to file.",
+      "when": "导出/落盘；见 describe"
+    },
+    "kicad.export_erc_report": {
+      "fn": "Export ERC report to file.",
+      "when": "导出/落盘；见 describe"
+    },
+    "kicad.export_pcb_3d": {
+      "fn": "Export the PCB as a STEP 3D model for mechanical CAD handoff.",
+      "when": "导出/落盘；见 describe"
+    },
+    "kicad.export_schematic_svg": {
+      "fn": "Export schematic pages to SVG images.",
+      "when": "导出/落盘；见 describe"
+    },
+    "kicad.extract_gpio_config": {
+      "fn": "Extract GPIO pin configurations from schematic.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.extract_i2c_devices": {
+      "fn": "Extract I2C bus and device configurations.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.extract_pinmux_config": {
+      "fn": "Extract pin multiplexing configuration for MCUs.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.extract_power_domains": {
+      "fn": "Extract power domain and regulator configurations.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.extract_spi_devices": {
+      "fn": "Extract SPI bus and device configurations.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.find_tracks_by_net": {
+      "fn": "Find track segments belonging to a specific net.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.generate_device_tree": {
+      "fn": "Generate device tree source (.dts) file from schematic.",
+      "when": "导出/落盘；见 describe"
+    },
+    "kicad.generate_netlist": {
+      "fn": "Generate KiCad netlist from schematic file.",
+      "when": "导出/落盘；见 describe"
+    },
+    "kicad.get_drc_violations": {
+      "fn": "Get filtered DRC violations from PCB.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.get_erc_violations": {
+      "fn": "Get filtered ERC violations from schematic.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.get_netlist_components": {
+      "fn": "Get all components from netlist with their network connections.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.get_netlist_nets": {
+      "fn": "Get all nets from netlist file.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.get_pcb_statistics": {
+      "fn": "Get statistics about a KiCad PCB design.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.get_registry_part": {
+      "fn": "Get the full registry record for one part.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.get_schematic_info": {
+      "fn": "Get general information about a schematic file.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.get_symbol_details": {
+      "fn": "Get detailed information about a specific symbol/component.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.list_pcb_footprints": {
+      "fn": "List all footprints in a KiCad PCB file.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.list_schematic_components": {
+      "fn": "List all components in a KiCad schematic file.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.list_schematic_nets": {
+      "fn": "List all nets in a KiCad schematic.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.run_drc": {
+      "fn": "Run Design Rules Check (DRC) on PCB.",
+      "when": "按需使用；见 describe"
+    },
+    "kicad.run_erc": {
+      "fn": "Run Electrical Rules Check (ERC) on schematic.",
+      "when": "按需使用；见 describe"
+    },
+    "kicad.search_components_by_type": {
+      "fn": "Search for components by type (OLED, sensor, display, etc.).",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.search_parts_registry": {
+      "fn": "Search an open registry of 21,000+ verified KiCad parts (no login).",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.search_symbols": {
+      "fn": "Search for symbols/components matching a pattern.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.setup_pcb_layout": {
+      "fn": "Initialize an empty PCB with the specified board outline dimensions.",
+      "when": "修改已有对象；见 describe"
+    },
+    "kicad.trace_hierarchical_connection": {
+      "fn": "Trace component connections across hierarchical schematics.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.trace_netlist_connection": {
+      "fn": "Trace component connections using netlist file (most accurate).",
+      "when": "只读查询/分析；见 describe"
+    },
+    "kicad.validate_pin_configuration": {
+      "fn": "Validate pin configuration conflicts for device tree generation.",
+      "when": "只读查询/分析；见 describe"
+    },
+    "context7.query-docs": {
+      "fn": "Retrieves and queries up-to-date documentation and code examples from Context…",
+      "when": "只读查询/分析；见 describe"
+    },
+    "context7.resolve-library-id": {
+      "fn": "Resolves a package/product name to a Context7-compatible library ID and retur…",
+      "when": "按需使用；见 describe"
+    },
+    "fetch.fetch": {
+      "fn": "Fetches a URL from the internet and optionally extracts its contents as markd…",
+      "when": "按需使用；见 describe"
+    },
+    "kicad-gui.search_parts_registry": {
+      "fn": "搜开放 parts registry 里已入库的 KiCad 器件（带可下封装/符号/3D）",
+      "when": "自建封装/符号前先查有没有现成件；查嘉立创现货与价格改用 search_jlcpcb_parts"
+    },
+    "kicad-gui.get_registry_part": {
+      "fn": "按 id 看 registry 部件详情：描述、可下文件、数据手册、许可、来源",
+      "when": "search_parts_registry 拿到 id 后确认要下哪几个文件"
+    },
+    "kicad-gui.download_registry_part": {
+      "fn": "按 id 把 registry 部件文件下到本地：format=kicad_mod / kicad_sym / step",
+      "when": "决定复用 registry 件时；只想看详情用 get_registry_part"
+    },
+    "kicad-gui.install_gui_driver": {
+      "fn": "把 in-KiCad GUI-driver 助手插件装进用户插件目录（opt-in，不装也能连）",
+      "when": "要用 kicad_gui_tree 等 GUI 驱动能力且插件未装时；装完须设 KICAD_GUI_DRIVER_ENABLE=1 并重启 KiCad"
+    },
+    "kicad-gui.kicad_gui_tree": {
+      "fn": "枚举活着的 KiCad GUI：菜单/子菜单(wx id) 与 AUI 工具栏(id+tooltip)，破坏性项带 ⚠",
+      "when": "要按 GUI 菜单/工具栏核对能力或找命令入口时"
+    },
+    "konnect.create_symbol": {
+      "fn": "新建 KiCad 原理图符号并追加到 .kicad_sym（pins/units 多单元/电源脚）",
+      "when": "konnect 通道建库建符号；改已有符号改用符号编辑类工具"
+    }
+  }
+}

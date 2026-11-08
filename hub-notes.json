@@ -1,0 +1,2142 @@
+{
+  "_note": "servers.json → hub.notes 草稿（多行判别块：use=何时用 / alt=别用→改用谁 / bounds=硬边界 / trap=坑）。尚未接进 index.mjs。",
+  "notes": {
+    "lceda-tools.lceda_execute": {
+      "use": "立创原理图/EDA 全局 JS 多步读写：一条代码跑完放件→改属性→回读，省往返。",
+      "alt": "PCB 编辑器里跑官方 eda.* API → jlceda.pcb_execute_code；只放件/连线 → lceda_batch 更快更安全。",
+      "bounds": "单次 28 s；超时=调用方拿不到返回，但 EDA 侧代码仍会跑完。",
+      "trap": "不要写成 (async()=>{…})() 表达式（会被拦下、静默返回 null 且吞异常）；超时后先回读现状再决定重发，别盲目重跑。 ⚠2026-11-06：eda.lib_Device.getByLcscIds 会成对错配（请求 C2041465+C77239 回两条同名 MOSFET 且无 supplierId）⇒ 解析件一律 search(name) 后按 supplierId 精确比对。"
+    },
+    "lceda-tools.lceda_batch": {
+      "use": "原理图批量操作：create 放件 / wire 导线 / netlabel 网名 / 端口等九类 op 任意混装。",
+      "alt": "单步操作 → lceda_execute；要算引脚坐标 → 先 lceda_pinmap / lceda_pins。",
+      "bounds": "单次 ≤100 op；超过 16 s 返回 continues，必须把剩余 op 重送。delete 带 flagImpact(默认开)/cascade；deleteWires 回报 impact 且有 expectCount/maxWireSegments 硬闸；move 可移电源标号（删旧建新、返回新 id）。细节见「删/移标号与折线」「删线的影响面与硬闸」章。",
+      "trap": "move 对 netflag 走「删旧建新」⇒ 用返回的新 id；删 netflag 会把经过其锚点的折线拉直/合并，按 id 删线可能删掉整条轨（删前先 getAll 看 line）。守卫 2026-11-06 前只看折线首段（拐点漏判，已修）。"
+    },
+    "lceda-tools.lceda_pins": {
+      "use": "读【已经在图上】器件的引脚坐标+朝向（num/name/x/y/rot/dir/type），一次读全部。",
+      "alt": "器件还没落图、要预算坐标 → lceda_pinmap。",
+      "bounds": "rot 是引脚朝外方向：0=+x 90=+y 180=-x 270=-y，可直接喂 lceda_batch 的 netlabel{dir}。",
+      "trap": "只有已放置器件才有引脚；改过旋转/镜像后要重读，别用旧坐标。"
+    },
+    "lceda-tools.lceda_pinmap": {
+      "use": "放件【前】预算引脚绝对坐标、相对偏移和 bbox（给 lcsc/deviceUuid + x,y,rotation,mirror）。",
+      "alt": "器件已在图上 → lceda_pins（别再 pinmap）。",
+      "bounds": "内部用『放置→读脚→同脚本内删除』，文档不留对象（partsBefore==partsAfter 作为 ok 判据）。",
+      "trap": "坐标是宿主真值，不要自己推符号旋转规则；比『先放再读再挪』省两步。 ⚠2026-11-06：pinmap 与落库后 lceda_pins 可能给不同引脚表（同号命中同名变体），实测 C77239 pinmap 3 脚/落库 8 脚 ⇒ 布局坐标只认 pins，pinmap 只判放不放得下。"
+    },
+    "lceda-tools.lceda_netcheck": {
+      "use": "网表验收：snapshot 存 Protel2 基线；check/diff 比新增/消失/改动的网与单脚网；可传 expect:{nets,pins,singles} 断言规模。",
+      "alt": "整页几何缺陷（重复位号/悬空端点/文本互压）→ lceda_audit。",
+      "bounds": "ok=true 当且仅当 expect 全部成立；list 列基线，prune 只留最近 keep 个（默认 20）。",
+      "trap": "必须先 snapshot 再有基线；编辑后先 check，别等交付时才发现单脚网。"
+    },
+    "lceda-tools.lceda_audit": {
+      "use": "交付前整页体检（只读）：重复器件/位号/导线/电源符号、引脚重合、悬空端点、非网格点、器件相交、文本互压、网名与网表不符 + 未连引脚。",
+      "alt": "只比网表规模/差异 → lceda_netcheck。",
+      "bounds": "ok=true 当且仅当缺陷计数为 0；未连引脚只报不判错（PG/FB2 这类天然悬空）。",
+      "trap": "全部只读，可与其他只读工具并发；有缺陷先修再出板。 ⚠2026-11-06：批量删/重建导线后 netlist 与 audit 会读滞后（实测真值 15 网/67 脚被读成 13 网/41 脚假报警）⇒ 先 document_save(verify:true) 关页重开再 audit。"
+    },
+    "lceda-tools.lceda_status": {
+      "use": "体检：桥地址、EDA online/half、当前工程、三种库 uuid、打开中的 tabs。",
+      "alt": "PCB 内容状态 → jlceda.pcb_get_state；手机通道 → dshlink.status。",
+      "bounds": "projectReady 对『工程已开但没开文档』会报 notLoaded，仅供参考。",
+      "trap": "HALF_OFFLINE 下工程级 API 不可用（createProject 报 path 错误、openProject 返 false），别把它当故障。"
+    },
+    "lceda-tools.lceda_document_source": {
+      "use": "原理图页文档源事务接口：读/改 JSON-lines 源；专门处理【属性图元】（网络标签）这类官方删不掉的东西。",
+      "alt": "纯文本对象 → lceda_text。",
+      "bounds": "189 KB 页面读一次约 3 ms。",
+      "trap": "网络标签的官方 delete 是空实现（return false）、文本 delete 只改内存（save 后从源复活）——必须走这里做源级删除。"
+    },
+    "lceda-tools.lceda_text": {
+      "use": "文本对象 CRUD：list/create/set/move/delete（delete 内建墓碑流程，但仍可能复活）。",
+      "alt": "网络标签这类属性图元 → lceda_document_source。",
+      "bounds": "match 是数组（[{text:'精确'}|{contains:'片段'}|{x,y}]）；不接受 fontSize。set/move 用「新建+删旧」（modify 不落库）。",
+      "trap": "⚠2026-11-06 实测：delete 报 ok 后 save(verify:true) 仍 srcMismatch(TEXT src=6 page=7)、list 同 id 再现。真解法=内存删+document_source{drop,dropIds}+save(verify:false)+重开页；别跟 save(verify:true)。"
+    },
+    "lceda-tools.lceda_document_save": {
+      "use": "保存当前原理图页并回读自证（save → 读文档源长度/特征 → 可选关闭重开比对器件数）。",
+      "alt": "要批量改动前后的对比 → lceda_netcheck。",
+      "bounds": "save() 返回 true 只代表调用返回。",
+      "trap": "落库以【重开后回读】为准，verify=true 才可信。"
+    },
+    "lceda-tools.lceda_screenshot": {
+      "use": "按 API 截 EDA 画布，支持多页一次抓（target=active|all|<tabId>，doctype：1 原理图 2 符号 3 PCB 4 封装）。",
+      "alt": "只要当前 PCB 一张 → jlceda.pcb_screenshot；看局部细节 → lceda_zoom。",
+      "bounds": "多页模式逐个 activateDocument→等 waitMs→zoomToAllPrimitives→截→恢复原活动页；超 budgetMs 的页标记 skipped。",
+      "trap": "doctype 不是 enum（写错不报错只会截错页）；只要细节就别截整页再裁。"
+    },
+    "lceda-tools.lceda_zoom": {
+      "use": "按位号取引脚 bbox 裁剪并放大回图，直接给细节截图。",
+      "alt": "整页/多页概览 → lceda_screenshot。",
+      "bounds": "坐标→像素用 off=11px + 画布 1169x826 线性映射，可用 sheetWidth/sheetHeight/marginPx 校准。",
+      "trap": "省掉『截图→手算 crop→magick 裁』三步；读不准的参数/间距用它，不要靠整页低清预览下结论。"
+    },
+    "lceda-tools.lceda_symbol_create": {
+      "use": "库内建符号并落库：create→openInEditor→断言活动文档为空符号→画引脚→画框→逐脚设 Pin Type→save→回读 PIN/RECT/ATTR 计数。",
+      "alt": "只建器件外壳并关联符号/封装 → lceda_device_create。",
+      "bounds": "坐标单位 0.01 inch，pin 间距建议 10。",
+      "trap": "lib_Symbol.create 不打开文档，非空就中止（绝不画进别人的符号）；引脚电气类型必须逐脚设，别留默认。"
+    },
+    "lceda-tools.lceda_device_create": {
+      "use": "建器件并关联符号/封装/3D：lib_Device.create，返回 uuid 并回读 association 三件套。",
+      "alt": "只画符号 → lceda_symbol_create；只画封装 → 走 component-footprint 流程。",
+      "bounds": "入参 name + symbolUuid + footprintUuid，3D 可选。",
+      "trap": "关联不上多半是 uuid 拿错（个人库/系统库/工程库三套 uuid 别混）。"
+    },
+    "lceda-tools.lceda_project_open": {
+      "use": "打开云端工程并激活其首个原理图页：openProject→等→回读→openDocument→回读器件数。",
+      "alt": "只看当前工程/库状态 → lceda_status。",
+      "bounds": "返回 {uuid,name,pageUuid,parts}。",
+      "trap": "HALF_OFFLINE 模式下工程级 API 不可用（openProject 返 false）⇒ 必须人工在 GUI 打开工程。"
+    },
+    "jlceda.pcb_execute_code": {
+      "use": "PCB 编辑器里执行官方扩展 API 代码（eda.*），高级/调试用。",
+      "alt": "原理图侧 JS 读写 → lceda-tools.lceda_execute。",
+      "bounds": "代码运行在扩展环境，eda 为官方 API。",
+      "trap": "PCB 与原理图是两个运行时，eda.* 在原理图页不可用；写库类操作先 get_state 留底。"
+    },
+    "jlceda.pcb_run_drc": {
+      "use": "跑 PCB 设计规则检查。",
+      "alt": "原理图 ERC 不在这里（走 konnect/kicad 的 ERC 工具）。",
+      "bounds": "无参数，返回违规清单。",
+      "trap": "自动布线（pcb_auto_route_nets）之后必须跑它复查，否则『布通了』不等于合规。"
+    },
+    "jlceda.pcb_screenshot": {
+      "use": "截当前 PCB 编辑器一张图。",
+      "alt": "多页/原理图/符号/封装页 → lceda-tools.lceda_screenshot；局部放大 → lceda_zoom。",
+      "bounds": "无参数；本机 3.2.186 曾返回 screenshot unavailable。",
+      "trap": "失败先查桥/版本，不要反复重试把编辑器卡住。"
+    },
+    "jlceda.pcb_get_tracks": {
+      "use": "查走线段（可按 net / layer 过滤）。",
+      "alt": "判『哪些网络还没布线』→ pcb_net_connectivity_check；整体快照 → pcb_get_state。",
+      "bounds": "坐标单位 mil。",
+      "trap": "过滤参数是可选的，不传=全板线段，量大先加 net 过滤。"
+    },
+    "jlceda.pcb_net_connectivity_check": {
+      "use": "全局判未布线网络（按焊盘数/走线段数）。",
+      "alt": "查某网络的具体线段 → pcb_get_tracks。",
+      "bounds": "可传 nets 限定范围。",
+      "trap": "『有走线段』≠『连通』，最终验收仍要 DRC。"
+    },
+    "jlceda.pcb_get_state": {
+      "use": "PCB 内容快照：元件、网络、板框等。",
+      "alt": "桥/工程/库状态 → lceda-tools.lceda_status。",
+      "bounds": "无参数，返回全量状态。",
+      "trap": "大板返回大，取需要的字段别整段进上下文。"
+    },
+    "jlceda.pcb_route_track": {
+      "use": "按 net + points + layer + width 画一条走线。",
+      "alt": "批量/多网络 → pcb_auto_route_nets 或 batch 多条；打过孔 → pcb_create_via。",
+      "bounds": "坐标单位 mil；points 为折点数组。",
+      "trap": "画完要 pcb_run_drc；跨层必须先用 create_via，别让线悬空。"
+    },
+    "jlceda.pcb_create_via": {
+      "use": "在 (x,y) 打一个过孔（net/drill/diameter）。",
+      "alt": "布整条线 → pcb_route_track；自动避障布线 → pcb_auto_route_nets。",
+      "bounds": "坐标单位 mil；drill/diameter 也用 mil。",
+      "trap": "过孔必须挂在 net 上，否则 DRC 报孤立孔。"
+    },
+    "jlceda.pcb_batch_move": {
+      "use": "批量移动多个元件（moves 数组，一次事务）。",
+      "alt": "单个元件挪动直接调对应单件接口；布局整体重排先算好坐标再批量。",
+      "bounds": "每个 move 至少 designator + 目标坐标。",
+      "trap": "批量失败会整批不生效（要么全成要么全不成），失败先看是哪一条不合法。"
+    },
+    "jlceda.pcb_open_document": {
+      "use": "按 uuid 切换当前文档（原理图或 PCB）。",
+      "alt": "打开云端工程（带回读）→ lceda-tools.lceda_project_open。",
+      "bounds": "入参 uuid 必填。",
+      "trap": "切完要回读当前页确认，别假设切换成功。"
+    },
+    "jlceda.sch_get_netlist": {
+      "use": "导出原理图网表。",
+      "alt": "与基线比对/验收 → lceda-tools.lceda_netcheck。",
+      "bounds": "type 参数指定格式——【只认 Protel2】。",
+      "trap": "其他格式解析会失败；单脚网数量是判断图是否可用的关键指标。"
+    },
+    "jlceda.pcb_component_clearance_check": {
+      "use": "检查所有元件对的最小间距，标出低于阈值的违规对。",
+      "alt": "完整设计规则 → pcb_run_drc。",
+      "bounds": "minClearance 默认 20 mil。",
+      "trap": "只查元件对元件，不查线与线/线与焊盘。"
+    },
+    "jlceda.pcb_auto_route_nets": {
+      "use": "自动布线：单层障碍规避（默认，绕焊盘+clearance）或两层 L 型（useVias）。",
+      "alt": "要精确控制路径 → pcb_route_track 手工画。",
+      "bounds": "可传 nets 限定；两层模式才用 useVias。",
+      "trap": "布完【必须 pcb_run_drc 复查】，自动布线不理解电气意图。"
+    },
+    "pdf.read_pdf": {
+      "use": "读本地 PDF 页，返回文字+页面图像（@@PB_META / @@PDF_TEXT p=N / @@PDF_IMAGE p=N）。",
+      "alt": "精确版式、参数名、双栏表格 → pdftotext -layout；曲线读数 → 裁剪放大后看。",
+      "bounds": "省略 pages 从第 1 页起；大读取会在 @@PB_META 里给 rem/next。",
+      "trap": "text_only 会丢词间空格（TheLM5125A-Q1isastackable）⇒ 参数名一律核对 layout 文本；抽不出文本 ≠ 内容不存在。"
+    },
+    "freecad.execute_code_headless": {
+      "use": "独立 freecadcmd 进程跑 Python：适合可能崩/阻塞的 OCCT 几何（螺纹 makeHelix+makePipeShell、loft、扫掠）。",
+      "alt": "长跑后台、先不等结果 → execute_code_async；改 GUI 文档的交互操作 → GUI 通道。",
+      "bounds": "独立进程，不碰 GUI，崩了不影响主 FreeCAD。",
+      "trap": "不要用它做需要 GUI 状态的操作；重导入 STEP 校验比看返回值可靠。"
+    },
+    "freecad.execute_code_async": {
+      "use": "长跑后台计算，先不等完成就返回。",
+      "alt": "可能崩/阻塞的几何 → execute_code_headless。",
+      "bounds": "不给结果，要自己轮询状态（get_async_status）。",
+      "trap": "不要在 async 里改 GUI 或文档树。"
+    },
+    "dshlink.status": {
+      "use": "任何手机操作前先看：守护进程在不在、手机连没连、设备信息。",
+      "alt": "—",
+      "bounds": "无参数。",
+      "trap": "手机没连时别反复 push，先修通道。"
+    },
+    "dshlink.push": {
+      "use": "把电脑上的文件推到手机『下载』目录（不需要 adb，也不需要存储权限）。",
+      "alt": "回读手机上的文件 → dshlink.files。",
+      "bounds": "入参本地绝对路径 + 可选 name。",
+      "trap": "作用域存储：手机端只能看到本 app 写过的条目。"
+    },
+    "dshlink.files": {
+      "use": "手机『下载』目录：action=list 列条目，action=pull 回读某文件到本地。",
+      "alt": "推文件到手机 → dshlink.push。",
+      "bounds": "enum: list / pull。",
+      "trap": "作用域存储限制：看不到其他 app 写的文件。"
+    },
+    "kicad.export_gerber": {
+      "use": "把 .kicad_pcb 导成 Gerber+钻孔（kicad-cli），报实际产出的文件。",
+      "alt": "出整套制造包（BOM/坐标）→ kicad-manufacture 技能里的流程。",
+      "bounds": "需要 KiCAD 7+ 且装 kicad-cli；入参 pcb_path。",
+      "trap": "导出前先存盘，否则导的是旧板；导到全新目录再逐个核 artifact。"
+    },
+    "kicad.render_pcb": {
+      "use": "把 PCB 渲染成 PNG（3D 视角，返回图像本身）。",
+      "alt": "要看清尺寸/丝印文字 → lceda_zoom 或矢量导出。",
+      "bounds": "footprint 必须已挂 3D 模型，否则只渲裸板几何。",
+      "trap": "渲染图不能用来量尺寸，只用于外观检查。"
+    },
+    "konnect.load_toolset": {
+      "use": "按名字加载一套 KiCAD 工具集，加载后其工具才出现在 tools/list 可调用。",
+      "alt": "查现在装了哪些 → get_active_toolsets；看有哪些可选 → list_toolboxes。",
+      "bounds": "入参 name。",
+      "trap": "不 load 就调 = 工具不存在；技能 kicad-dispatch 里写死的 toolset 组合优先照抄。"
+    },
+    "konnect.open_project": {
+      "use": "列/检查 KiCAD GUI 里已打开的 PCB 文档（IPC）。",
+      "alt": "新建工程 → create_project；读工程元数据 → get_project_info。",
+      "bounds": "可选指定要检查的 KiCad 工程。",
+      "trap": "它不负责打开文件——闭板路径只有受控 fallback，别指望它把板开起来。"
+    },
+    "freeroute.freeroute_route": {
+      "use": "一条龙布板：导出DSN(注入线宽)→freerouting→回灌(回写线宽)→DRC/连通性验收。",
+      "alt": "只想跑布线器 → freeroute_run；已有 SES 只回灌 → freeroute_import；立创内置布线 → jlceda.pcb_auto_route_nets。",
+      "bounds": "跑一轮约 35 s 布线 + 最多 ~200 s 优化；max_seconds 默认 900 会强杀。板子必须先清空走线，否则 DSN 全是 protected wire 被拒。",
+      "trap": "LCEDA 导入 SES 会把所有线宽压平成 10 mil，必须让工具回写（默认开）；宽线会让 freerouting 剩下 8~13 个连接布不通，宽度与布通率要权衡。"
+    },
+    "freeroute.freeroute_run": {
+      "use": "只跑 freerouting 本体，给已有 DSN 出 SES，拿 unrouted/violations/耗时。",
+      "alt": "要连回灌与验收 → freeroute_route。",
+      "bounds": "threads 默认 1（多线程易出违规）；passes 默认 30；有 protected wire 且未 allow_protected 会被拒。",
+      "trap": "布不通时 freerouting 2.5 会跳过优化器（2.4 不会），所以耗时短≠布通了，必须看 unrouted 数。"
+    },
+    "freeroute.freeroute_import": {
+      "use": "把 SES 回灌到当前 PCB，并按 SES 逐段回写线宽。",
+      "alt": "整条链 → freeroute_route；只想核对 SES 内容 → freeroute_dump。",
+      "bounds": "会覆盖/叠加现有走线（先清空或确认）；单次 modify 分批 70 条防桥超时。",
+      "trap": "导入后宽度全是 10 mil 是编辑器行为，不是 SES 问题；apply_widths=false 只用于纯几何回灌。"
+    },
+    "freeroute.pour_rebuild": {
+      "use": "重建覆铜填充并判定 verified：先原生批量、再 recovery、最后 eda 兜底，按板面 Poured 回读判真假。",
+      "alt": "需要 Pro 通道铺铜管理时用 jlceda-native 的 pour_manage 系列。",
+      "bounds": "timeout_s 默认 20 秒等填充出现；verified 以本地 Poured 计数为准，不看原生返回值。",
+      "trap": "native 报 unknown commit state 时说明桥侧有未确认写入（多为外部 eda.* 直改造成），三条兜底都失败要重启 jlceda-native 桥或 GUI 重建；本机实测该状态自愈不了。"
+    },
+    "freeroute.pour_read": {
+      "use": "读当前 PCB 覆铜清单＋是否已填充，并回带 pcb/工程标识（防错板）。",
+      "alt": "要重建 → pour_rebuild；要新建 → pour_create_rect。",
+      "bounds": "只读；需活动页是 PCB，否则直接报错。",
+      "trap": "native 的 read 正常不代表写得了：pouredCount=0 就是没填，别把边框数当铺铜成功。"
+    },
+    "github.create_or_update_file": {
+      "use": "改单个文件。",
+      "alt": "多文件一次提交 → push_files；删文件 → delete_file。",
+      "bounds": "更新已存在的文件**必须带该文件当前 sha**，否则报冲突。",
+      "trap": "走的是 Contents API，大文件/二进制会被 base64 撑大；连续改同一文件时后一次要重新取 sha。"
+    },
+    "github.push_files": {
+      "use": "一次提交多个文件（同一 commit）。",
+      "alt": "单文件 → create_or_update_file。",
+      "bounds": "files 是 path→content 的映射；必须给 branch 与 message。",
+      "trap": "整批要么全成要么失败；分支不存在会直接报错（先 create_branch）。"
+    },
+    "github.create_repository": {
+      "use": "新建仓库。",
+      "alt": "给已有仓库提改动 → create_or_update_file / push_files。",
+      "bounds": "name 必填；建到组织下需要该组织的权限。",
+      "trap": "token 需 repo scope（本机用的是 ~/.dsh/github-push-token，只读 token 会 403）。"
+    },
+    "github.create_pull_request": {
+      "use": "建 PR。",
+      "alt": "只改文件 → push_files。",
+      "bounds": "head 分支必须**已存在于远端**，否则 422。",
+      "trap": "同仓库内 head 写 'branch'，跨 fork 写 'owner:branch'。"
+    },
+    "github.merge_pull_request": {
+      "use": "合并 PR。",
+      "alt": "—",
+      "bounds": "不可逆；可指定 merge_method。",
+      "trap": "合并前先跑 pull_request_read 看 checks 状态；本机 token 需 repo 写权限。"
+    },
+    "github.delete_file": {
+      "use": "删除仓库文件。",
+      "alt": "用 create_or_update_file 把内容清空不算删。",
+      "bounds": "需 path + message + branch，**不可逆**。",
+      "trap": "删前先用 get_file_contents 确认路径与 sha。"
+    },
+    "github.get_file_contents": {
+      "use": "读文件或目录。",
+      "alt": "搜索代码 → search_code。",
+      "bounds": "path 省略=仓库根目录（返回列表）。",
+      "trap": "返回内容 base64，二进制看起来正常但不可读；大文件会被截断。"
+    },
+    "github.search_code": {
+      "use": "跨仓库代码搜索。",
+      "alt": "只查某仓库某文件 → get_file_contents。",
+      "bounds": "query 支持 GitHub 搜索语法，**建议带 repo: 限定**。",
+      "trap": "每页结果有限、需翻页；不含 fork 与归档仓库。"
+    },
+    "github.search_repositories": {
+      "use": "按名称/描述/readme/topics 搜仓库。",
+      "alt": "查用户 → search_users。",
+      "bounds": "query 用 GitHub 搜索语法（stars:>100 之类可用）。",
+      "trap": "排序默认 best match，需要时显式给 sort。"
+    },
+    "github.issue_write": {
+      "use": "新建或更新 issue（method 决定）。",
+      "alt": "只是评论 → add_issue_comment。",
+      "bounds": "method=create 需 title，method=update 需 issue_number。",
+      "trap": "更新时漏传字段可能被覆盖成空；先 issue_read。"
+    },
+    "github.pull_request_review_write": {
+      "use": "创建/提交/删除 PR 评审（method 决定）。",
+      "alt": "行级评论 → add_comment_to_pending_review。",
+      "bounds": "create 起 pending review → submit 提交 → delete 撤销。",
+      "trap": "pending review 不 submit 不会出现在 PR 上；一条 PR 只能有一个 pending review。"
+    },
+    "github.run_secret_scanning": {
+      "use": "扫文件/内容/近期改动里的密钥。",
+      "alt": "组织级扫描不在这个工具里。",
+      "bounds": "files 必填（路径或内容列表）。",
+      "trap": "查的是你给的样本，不是历史全量；提交前跑一次。"
+    },
+    "freeroute.pour_create_rect": {
+      "use": "按矩形建覆铜边框（mil）。",
+      "alt": "—",
+      "bounds": "创建**不填铜**，必须再 pour_rebuild。",
+      "trap": "坐标是 mil；填铜失败先看 pour_read 的 filled 字段。"
+    },
+    "jlceda.pcb_create_copper_pour": {
+      "use": "建矩形铺铜区域（net/layer/坐标）。",
+      "alt": "批量铺铜填充核对走 freeroute 的 pour_read / pour_rebuild。",
+      "bounds": "**创建不填铜**。",
+      "trap": "铺铜要 refill 才算数，别把\"创建成功\"当\"已铺\"。"
+    },
+    "jlceda.pcb_auto_fanout_and_route": {
+      "use": "扇出→自动布线→DRC→丝印自修复，一把梭。",
+      "alt": "分步做用 pcb_fanout_component + pcb_auto_route_nets。",
+      "bounds": "耗时较长。",
+      "trap": "结果仍需人工看 DRC 与丝印；一刀切版式很少能直接用。"
+    },
+    "jlceda.pcb_relocate_component": {
+      "use": "安全搬迁元件（自动断开走线）。",
+      "alt": "只挪位置不管线用 pcb_move_component。",
+      "bounds": "会断线，需重布。",
+      "trap": "已布线的板挪件请用它，直接 move 会留悬空线段。"
+    },
+    "jlceda.sch_generate_from_netlist": {
+      "use": "用官方 setNetlist 把网表导入生成原理图。",
+      "alt": "改现有图用 lceda_batch/lceda_execute。",
+      "bounds": "支持 EasyEDA/JLCEDA/Protel2/PADS…；**本机验收只认 Protel2**。",
+      "trap": "导入后要用 lceda_netcheck 与源网表比对（网数/脚数/单脚网）。"
+    },
+    "jlceda.pcb_design_snapshot": {
+      "use": "存设计快照做 diff 基线。",
+      "alt": "要看网表差异用 lceda_netcheck。",
+      "bounds": "存本地快照文件。",
+      "trap": "改之前先 snapshot，否则 diff 没基线。"
+    },
+    "jlceda.pcb_delete_tracks": {
+      "use": "按 primitiveIds 删走线。",
+      "alt": "全清重布可用 pcb_auto_route_nets 覆盖。",
+      "bounds": "要精确 id（先 pcb_get_tracks）。",
+      "trap": "删完 EDA 有读滞后，立刻按同几何重画可能被判已存在。"
+    },
+    "jlceda.pcb_bridge_status": {
+      "use": "看官方 Bridge 连接状态。",
+      "alt": "轻量探活用 pcb_ping。",
+      "bounds": "无参数。",
+      "trap": "掉线时先修桥，别连点各种写接口。"
+    },
+    "lceda-cli.lceda-pro.help": {
+      "use": "CLI 能力入口，列出子命令与用法。",
+      "alt": "—",
+      "bounds": "无参数。",
+      "trap": "**任何 lceda-cli 交互都先调它**，别猜命令名。"
+    },
+    "github.get_me": {
+      "use": "读当前 token 身份。",
+      "alt": "查他人用 search_users。",
+      "bounds": "无参数。",
+      "trap": "token 失效会 401——先确认身份再排查权限问题。"
+    },
+    "playwright.browser_snapshot": {
+      "use": "先拿 a11y 快照再操作。",
+      "alt": "要视觉证据用 browser_take_screenshot。",
+      "bounds": "返回文本快照，元素带引用。",
+      "trap": "不要拿截图当元素来源——图里没有可点的引用。"
+    },
+    "playwright.browser_run_code_unsafe": {
+      "use": "常规工具覆盖不到时兜底。",
+      "alt": "能用 click/type/evaluate 就别用它。",
+      "bounds": "执行任意 JS，无沙箱。",
+      "trap": "它会绕过所有封装校验，别在陌生站点上用。"
+    },
+    "chrome-devtools.select_page": {
+      "use": "绑定后续调用目标页。",
+      "alt": "新开页用 new_page。",
+      "bounds": "pageId 来自 list_pages。",
+      "trap": "**每条 chrome-devtools 调用都带 pageId**，选错页会操作到别的标签。"
+    },
+    "chrome-devtools.emulate": {
+      "use": "模拟网络/CPU/视口等。",
+      "alt": "只改视口用 resize_page。",
+      "bounds": "**每次调用替换全部仿真设置**。",
+      "trap": "忘记重置会污染后续所有调用——用完显式清回。"
+    },
+    "chrome-devtools.take_heapsnapshot": {
+      "use": "抓堆快照到文件做内存分析。",
+      "alt": "看性能瓶颈用 performance_start_trace。",
+      "bounds": "必须给 filePath。",
+      "trap": "快照文件很大，抓完即分析别攒着。"
+    },
+    "jlceda-native.pcb_routing_edit": {
+      "use": "读/改/删铜层直线、圆弧、折线、过孔。",
+      "alt": "建直线/过孔用 pcb_connectivity_action。",
+      "bounds": "按类型与 ID 操作。",
+      "trap": "创建不走这个口——直线/过孔创建在 pcb_connectivity_action。"
+    },
+    "jlceda-native.footprint_save": {
+      "use": "把当前独立封装源原样写回同库。",
+      "alt": "—",
+      "bounds": "saved:true 只代表 updateDocument 返回。",
+      "trap": "落库必须回读源核对，别只看 saved。"
+    },
+    "jlceda-native.bridge_clients": {
+      "use": "列已连 EDA 页面与就绪状态。",
+      "alt": "轻量探活用 jlceda.pcb_ping。",
+      "bounds": "无参数。",
+      "trap": "多开环境下**任何读写前先调它**确认目标页。"
+    },
+    "jlceda-native.netlabel_place": {
+      "use": "在引脚位放网络标签代替导线（电源/地用网络标识）。",
+      "alt": "要连网线用 lceda_batch 的 wire。",
+      "bounds": "普通网络标签需 EDA v4；3.x 直接报不支持。",
+      "trap": "本机验收只认 Protel2 网表——标签式连网要确认网表里有对应网。"
+    },
+    "lceda-tools.lceda_footprint_create": {
+      "use": "建封装并落库（坐标 mil，默认写个人库）。",
+      "alt": "复制近似封装用 lceda_footprint_clone；QFN 用 footprint_from_qfn_spec。",
+      "bounds": "名字不可改；4.1.78 上工程库写源必失败；骨架装饰要清（看 skeletonDecorRemoved）。",
+      "trap": "落库以 lceda_footprint_inspect 回读 PAD/POLY 计数为准。"
+    },
+    "lceda-tools.lceda_footprint_delete": {
+      "use": "删封装并回读自证。",
+      "alt": "—",
+      "bounds": "返回 ok/del/stillListed；工程库句柄在 4.1.78 删不掉。",
+      "trap": "stillListed 非空=没删掉，别当成功。"
+    },
+    "lceda-tools.lceda_footprint_export_source": {
+      "use": "读封装文档源用于备份/当模板。",
+      "alt": "看计数用 footprint_inspect。",
+      "bounds": "优先库侧零副作用读取（via:'library'）。",
+      "trap": "库侧读不到才落回编辑器，**会切走你的编辑器并把 8766 桥打哑**。"
+    },
+    "lceda-tools.lceda_gerber_export": {
+      "use": "临时建 PCB 导指定层 Gerber 并自证清理。",
+      "alt": "正式出板走 KiCAD 制造流程。",
+      "bounds": "createPcb 必须空参；layers 默认 [1,3,7]。",
+      "trap": "以 pcbsLeft 自证临时板已删；导出前确认层集合。 layers 是层号数组，值集不封闭（1=T铜 3=丝印 5=阻焊 7=钢网，底层用 2/4/6/8，其它层号原样透传给 getGerberFile）⇒ schema 不给 enum、预检不校验元素；层号写错不报错，只会导出空图。"
+    },
+    "lceda-tools.lceda_model3d_import": {
+      "use": "把本地 STEP 导入库成 3D 模型条目。",
+      "alt": "—",
+      "bounds": "仅 STEP 验证过（WRL 未验）。",
+      "trap": "导入后要 lceda_device_create 才能关联到器件。"
+    },
+    "lceda-tools.lceda_project_create": {
+      "use": "新建云端工程并打开首个原理图页。",
+      "alt": "已有工程用 lceda_project_open。",
+      "bounds": "friendlyName 中文可以；内部名限字母数字。",
+      "trap": "HALF_OFFLINE 下工程级 API 不可用（createProject 报 path 错误）⇒ 必须人工在 GUI 建。"
+    },
+    "lceda-tools.lceda_project_delete": {
+      "use": "删云端工程（官方未实现，如实报错）。",
+      "alt": "—",
+      "bounds": "API 已挂起（api-types.d.ts 标注 @internal + privateRemarks）。",
+      "trap": "别指望它；要清理只能在 GUI 操作。"
+    },
+    "lceda-tools.lceda_project_move": {
+      "use": "把工程移进文件夹（建文件夹→逐个挪→回读）。",
+      "alt": "—",
+      "bounds": "移动后回读 folder 的 projectList 校验。",
+      "trap": "本版 deleteProject 挂起，移动是唯一可用手段。"
+    },
+    "jlceda.pcb_auto_place_components": {
+      "use": "自动布局：元件移到焊盘质心（一阶优化），锁定件跳过。",
+      "alt": "精排用 pcb_batch_move。",
+      "bounds": "只做初稿，不避让。",
+      "trap": "跑完必须自己看重叠/间距（component_clearance_check）。"
+    },
+    "jlceda.pcb_bom_export": {
+      "use": "导出 PCB BOM（按元件名聚合：数量/位号/网络/LCSC）。",
+      "alt": "—",
+      "bounds": "返回 JSON + CSV。",
+      "trap": "料号缺失会显示空——先 component_select 补齐 LCSC。"
+    },
+    "jlceda.pcb_create_component": {
+      "use": "从库放元件到 PCB（libraryUuid/componentUuid/layer/坐标）。",
+      "alt": "原理图放件用 lceda_batch 的 create。",
+      "bounds": "坐标 mil；库 uuid 三套别混（个人/系统/工程）。",
+      "trap": "放完 pcb_get_pads 回读坐标确认。"
+    },
+    "jlceda.pcb_create_diff_pair": {
+      "use": "创建差分对定义（name/posNet/negNet）。",
+      "alt": "布线用 pcb_route_differential_pairs。",
+      "bounds": "两个网络必须已存在。",
+      "trap": "名字重复会报错；先 list_diff_pairs。"
+    },
+    "jlceda.pcb_create_equal_length": {
+      "use": "创建等长组（name/nets）。",
+      "alt": "—",
+      "bounds": "网络必须已存在。",
+      "trap": "建完要手动布线并核等长偏差。"
+    },
+    "jlceda.pcb_create_keepout": {
+      "use": "创建矩形禁布区。",
+      "alt": "—",
+      "bounds": "坐标 mil。",
+      "trap": "与安装孔/天线区重叠前先读板框。"
+    },
+    "jlceda.pcb_delete_diff_pair": {
+      "use": "删除差分对定义。",
+      "alt": "—",
+      "bounds": "按 name。",
+      "trap": "删前 list_diff_pairs 确认名字。"
+    },
+    "jlceda.pcb_delete_equal_length": {
+      "use": "删除等长组。",
+      "alt": "—",
+      "bounds": "按 name。",
+      "trap": "—"
+    },
+    "jlceda.pcb_delete_keepout": {
+      "use": "删除禁布区（primitiveId）。",
+      "alt": "—",
+      "bounds": "需要精确 id。",
+      "trap": "先读禁布区列表拿 id。"
+    },
+    "jlceda.pcb_delete_pour": {
+      "use": "删除铺铜（primitiveId）。",
+      "alt": "—",
+      "bounds": "填充一并消失。",
+      "trap": "删前 pour_read 确认是要删的那块。"
+    },
+    "jlceda.pcb_delete_selected": {
+      "use": "删除编辑器里当前选中的对象。",
+      "alt": "—",
+      "bounds": "依赖 GUI 选择状态。",
+      "trap": "选错就删错——先用 pcb_select_component 明确选中。"
+    },
+    "jlceda.pcb_delete_via": {
+      "use": "删除过孔（primitiveIds）。",
+      "alt": "—",
+      "bounds": "需要精确 id。",
+      "trap": "删孔后连通性会变，跑 net_connectivity_check。"
+    },
+    "jlceda.pcb_move_component": {
+      "use": "移动元件到指定坐标（mil）。",
+      "alt": "已布线的板用 pcb_relocate_component。",
+      "bounds": "坐标 mil。",
+      "trap": "直接 move 会留悬空走线。"
+    },
+    "jlceda.pcb_move_silkscreen": {
+      "use": "移动丝印文字（primitiveId/坐标）。",
+      "alt": "整体排列用 pcb_auto_silkscreen。",
+      "bounds": "需要 id（pcb_get_silkscreens）。",
+      "trap": "挪完看是否压焊盘。"
+    },
+    "jlceda.pcb_route_differential_pairs": {
+      "use": "差分对自动布线：正/负平行 L 型（负网偏移 gap），报等长偏差。",
+      "alt": "普通网络用 pcb_auto_route_nets。",
+      "bounds": "需先 pcb_create_diff_pair。",
+      "trap": "布完跑 pcb_run_drc + 看等长偏差。"
+    },
+    "jlceda.sch_generate_from_pcb": {
+      "use": "读 PCB 网表报告→转 Protel2→导入原理图生成。",
+      "alt": "已有网表直接导入用 sch_generate_from_netlist。",
+      "bounds": "会覆盖/重建原理图内容。",
+      "trap": "生成后必须 lceda_netcheck 与 PCB 侧网表比对。"
+    },
+    "jlceda-native.api_invoke": {
+      "use": "调用指定 EDA API（器件 create 会解析裸引用）。",
+      "alt": "能用 lceda-tools/jlceda 封装就别直接 invoke。",
+      "bounds": "apiFullName 必须来自 api_index/api_search。",
+      "trap": "裸 API 无校验，写库前先 bridge_clients 确认目标页。"
+    },
+    "jlceda-native.component_place": {
+      "use": "交互式逐件放置器件（每件 Esc/右键结束）。",
+      "alt": "批量摆件用 component_place_auto。",
+      "bounds": "需人工在编辑器配合。",
+      "trap": "半自动场景才用，全自动会卡在等人工。"
+    },
+    "jlceda-native.component_place_auto": {
+      "use": "按坐标或网格/线性布局自动放件。",
+      "alt": "交互式用 component_place。",
+      "bounds": "裸器件引用先解析为完整库对象；无效 uuid 返回 DEVICE_NOT_FOUND。",
+      "trap": "放完回读位号是否被 EDA 改。"
+    },
+    "jlceda-native.editor_navigate": {
+      "use": "打开/激活指定图页或 PCB 并回读身份。",
+      "alt": "—",
+      "bounds": "需先用 project_info 拿文档 UUID。",
+      "trap": "切页后回读确认，别假设成功。"
+    },
+    "jlceda-native.design_archive_export": {
+      "use": "导出工程/文档为原生 EasyEDA 归档。",
+      "alt": "出制造文件用 manufacture_export。",
+      "bounds": "有界预览，不是全量 dump。",
+      "trap": "归档用于存档/交接，不是交付物。"
+    },
+    "jlceda-native.design_source_export": {
+      "use": "读活动文档源或封装源（有界预览）。",
+      "alt": "要改源走对应 manage 工具。",
+      "bounds": "预览有字节上限。",
+      "trap": "大文档要分段读，别指望一次拿全。"
+    },
+    "jlceda-native.pcb_layer_manage": {
+      "use": "读铜层数与图层清单，或 confirm 后设 2–32 偶数层。",
+      "alt": "只读查层用 pcb_layer_query。",
+      "bounds": "写必须 confirm:true；降层会移除内层图元。",
+      "trap": "降层前先确认内层没东西。"
+    },
+    "jlceda-native.pcb_connectivity_action": {
+      "use": "为指定网络创建直线或过孔（默认要求网络已存在）。",
+      "alt": "改/删走线用 pcb_routing_edit。",
+      "bounds": "新网络需 allowNewNet:true。",
+      "trap": "写后接受严格共线覆盖，别指望它自动避障。"
+    },
+    "jlceda-native.pcb_documents_manage": {
+      "use": "列/建/复制/重命名工程内 PCB。",
+      "alt": "—",
+      "bounds": "写入须 confirm:true。",
+      "trap": "重命名后核对工程 UUID/PCB UUID/目录三项。"
+    },
+    "jlceda-native.schematic_connectivity_action": {
+      "use": "在原理图为指定网络建导线。",
+      "alt": "批量连网用 lceda_batch 的 wire。",
+      "bounds": "网络必须存在或显式新建。",
+      "trap": "连完看网表（netlist_compare）确认没合错网。"
+    },
+    "jlceda-native.schematic_component_edit": {
+      "use": "读原理图页器件，或按 ID 改/删。",
+      "alt": "批量改属性用 lceda_batch 的 props。",
+      "bounds": "几何修改会核对引脚有名网络与匿名导线连通组。",
+      "trap": "改完保存并回读。"
+    },
+    "jlceda-native.schematic_pages_manage": {
+      "use": "列/建/复制/重命名原理图图页。",
+      "alt": "—",
+      "bounds": "写操作需确认参数。",
+      "trap": "页名与外层工程一致性好查。"
+    },
+    "jlceda-native.schematic_text_manage": {
+      "use": "读/建/改/删原理图文本与器件属性文字。",
+      "alt": "链接性文本（删了又活）用 lceda_text。",
+      "bounds": "—",
+      "trap": "删文本后要重开页确认没复活。"
+    },
+    "jlceda-native.schematic_wire_manage": {
+      "use": "读/改/删原理图导线。",
+      "alt": "画线用 schematic_connectivity_action。",
+      "bounds": "按图元 ID 操作。",
+      "trap": "删线后网表会变，跑 netlist_compare。"
+    },
+    "freeroute.freeroute_dump": {
+      "use": "解析 .ses：网数/线段/过孔/线宽直方图。",
+      "alt": "—",
+      "bounds": "只读。",
+      "trap": "回灌后用它核对线宽是否真写进去。"
+    },
+    "freeroute.freeroute_export_dsn": {
+      "use": "导出 Sptectra DSN（mil）并按网络类注入线宽。",
+      "alt": "—",
+      "bounds": "检测 protected wire 会告警。",
+      "trap": "注入线宽是重点：LCEDA 回灌会把宽度压平。"
+    },
+    "freeroute.freeroute_verify": {
+      "use": "布线验收：DRC 违规分类 + 连通性 + 线宽直方图。",
+      "alt": "—",
+      "bounds": "返回 PASS/FAIL 闸门。",
+      "trap": "PASS 才算出板前合格。"
+    },
+    "freeroute.pour_delete": {
+      "use": "删除覆铜（按 ID 或全删）。",
+      "alt": "—",
+      "bounds": "填充一并消失。",
+      "trap": "删前 pour_read 确认。"
+    },
+    "freecad.create_document": {
+      "use": "新建 FreeCAD 文档。",
+      "alt": "—",
+      "bounds": "name 必填。",
+      "trap": "建模前先 list_documents 看是否已开同名。"
+    },
+    "freecad.create_object": {
+      "use": "按 obj_type 新建对象（Part::Box / Sketch 等）。",
+      "alt": "复杂形状用 execute_code_headless。",
+      "bounds": "obj_type 必须是已注册类型。",
+      "trap": "参数语义见 schema；建完 get_object 回读。"
+    },
+    "freecad.delete_object": {
+      "use": "删对象。",
+      "alt": "—",
+      "bounds": "不可逆（未保存时另说）。",
+      "trap": "删前 get_objects 确认名字。"
+    },
+    "freecad.edit_object": {
+      "use": "改对象属性（create_object 覆盖不到时）。",
+      "alt": "—",
+      "bounds": "属性名必须存在。",
+      "trap": "改完 get_object 回读校验。"
+    },
+    "freecad.execute_code": {
+      "use": "在运行中的 GUI FreeCAD 里执行 Python。",
+      "alt": "重活/易崩用 execute_code_headless。",
+      "bounds": "会卡 GUI，长任务别用。",
+      "trap": "要改文档树才用它；否则优先 headless。"
+    },
+    "playwright.browser_fill_form": {
+      "use": "一次填多个表单字段。",
+      "alt": "单字段用 browser_type。",
+      "bounds": "fields 是数组，元素要来自快照。",
+      "trap": "提交前再 snapshot 确认值进去了。"
+    },
+    "chrome-devtools.fill": {
+      "use": "给输入框/下拉填值（uid+value）。",
+      "alt": "多字段用 fill_form。",
+      "bounds": "uid 来自 take_snapshot。",
+      "trap": "下拉用 fill 也能选，但值必须是选项之一。"
+    },
+    "chrome-devtools.fill_form": {
+      "use": "一次填多个表单元素。",
+      "alt": "单字段用 fill。",
+      "bounds": "elements 数组需 uid。",
+      "trap": "填完 take_snapshot 复核。"
+    },
+    "konnect.route_trace": {
+      "use": "在 PCB 上画走线。",
+      "alt": "整批布线用 autoroute/routing 组。",
+      "bounds": "坐标 mm（KiCAD 口径），层名与宽度按设计规则。",
+      "trap": "跨层必须先过孔；画完跑 DRC。"
+    },
+    "konnect.refill_zones": {
+      "use": "重算所有铺铜填充。",
+      "alt": "只读铺铜状态用 pcb 组查询。",
+      "bounds": "改过走线/铺铜边框后必须重跑。",
+      "trap": "不 refill 的铺铜在出板里可能是空的。"
+    },
+    "konnect.update_pcb_from_schematic": {
+      "use": "把原理图改动同步到 PCB（ECO）。",
+      "alt": "只查差异先 export_netlist 对比。",
+      "bounds": "会改 PCB 网表与器件。",
+      "trap": "同步前存档/snapshot；跑完 DRC 看新增违规。"
+    },
+    "konnect.import_sheet_pins": {
+      "use": "把子图引脚导入/更新到层次图。",
+      "alt": "改层次结构用 edit_sheet。",
+      "bounds": "会改层次页连接。",
+      "trap": "导完核对网表（export_netlist）。"
+    },
+    "konnect.plan_specctra_ses_import": {
+      "use": "规划 .ses 回灌（只算不落）。",
+      "alt": "真正回灌走 route_specctra_dsn。",
+      "bounds": "只读规划。",
+      "trap": "先看它给的冲突再执行回灌。"
+    },
+    "konnect.route_specctra_dsn": {
+      "use": "用 freerouting 结果回灌布线。",
+      "alt": "只想跑 DSN 导出用 export_specctra_dsn。",
+      "bounds": "**会覆盖现有走线**。",
+      "trap": "回灌后核线宽（LCEDA 类通道会压平）并跑 DRC。"
+    },
+    "konnect.replace_component": {
+      "use": "替换已放置器件（换型号/换封装）。",
+      "alt": "只改属性用 edit_schematic_component。",
+      "bounds": "会断已布线连接。",
+      "trap": "替换前 snapshot；换完重跑 ERC/DRC。"
+    },
+    "konnect.set_design_rules": {
+      "use": "设置设计规则（间距/线宽/过孔）。",
+      "alt": "临时覆盖用单条 set_* 工具。",
+      "bounds": "影响后续所有 DRC 判定。",
+      "trap": "改完必须重跑 DRC（旧结论作废）。"
+    },
+    "konnect.create_project": {
+      "use": "新建 KiCAD 工程。",
+      "alt": "打开已有工程用 open_project。",
+      "bounds": "会落盘目录结构。",
+      "trap": "建完确认 .kicad_pro/.kicad_sch/.kicad_pcb 三件齐全。"
+    },
+    "konnect.create_footprint": {
+      "use": "新建封装。",
+      "alt": "复制现有封装改更快。",
+      "bounds": "落库在工程/个人库。",
+      "trap": "建完回读焊盘数与层归属。"
+    },
+    "konnect.batch_delete": {
+      "use": "批量删除对象。",
+      "alt": "单条删用对应 delete_*。",
+      "bounds": "一次事务，失败整批不动。",
+      "trap": "删前先 list/get 确认目标集合。"
+    },
+    "konnect.batch_connect_to_net": {
+      "use": "批量把引脚连到指定网络。",
+      "alt": "单点连用 connect_to_net。",
+      "bounds": "网络必须存在。",
+      "trap": "连完核对网表，防并网。"
+    },
+    "konnect.batch_place_components": {
+      "use": "批量放置器件。",
+      "alt": "单个放置用 place_component。",
+      "bounds": "坐标批内生效，重叠不自动避让。",
+      "trap": "放完看重叠/间距。"
+    },
+    "konnect.unload_toolset": {
+      "use": "卸下一组工具集，缩小工具面。",
+      "alt": "装用 load_toolset。",
+      "bounds": "会影响后续可用工具。",
+      "trap": "卸完其工具从 catalog 消失，别在同一任务中途卸。"
+    },
+    "konnect.add_board_outline": {
+      "use": "Add a rectangular board outline on Edge.Cuts, optionally using circular rounded corners.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_board_text": {
+      "use": "Add a silkscreen or fabrication text string to the board.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_bus": {
+      "use": "Add a bus segment between two points.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_bus_entry": {
+      "use": "Add a bus entry — the 45-degree tick that connects a wire to a bus.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_component_annotation": {
+      "use": "Add or update a custom property consistently across every placed unit of a component.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_copper_pour": {
+      "use": "Alias of pcb_board's add_zone, kept for compatibility: identical arguments, defaults and …",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_design_rule": {
+      "use": "Add a natural-language design rule that Claude should follow in this project.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_hierarchical_sheet": {
+      "use": "Insert a hierarchical sheet into a parent schematic, linking it to a child .kicad_sch fil…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_junction": {
+      "use": "Add a junction dot at a point where wires cross or T-intersect, or where a pin lands mid-…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_layer": {
+      "use": "Add a new inner copper or technical layer to the board layer stack.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_mounting_hole": {
+      "use": "Add an NPTH mounting hole footprint at the specified position, under the MountingHole lib…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_net": {
+      "use": "Idempotently add a net to the top-level net table of a pre-KiCad-10 board (S-expression i…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_no_connect": {
+      "use": "Add a no-connect flag (X marker) to an unconnected pin endpoint.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_power_symbol": {
+      "use": "Add a power symbol (VCC, GND, etc.) to the schematic.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_schematic_component": {
+      "use": "Add a symbol from a KiCAD library to the schematic.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_schematic_connection": {
+      "use": "Connect two schematic points directly with a wire (auto-routes H+V segments).",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_schematic_net_label": {
+      "use": "Add a net label to the schematic.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_schematic_text": {
+      "use": "Add a text annotation (non-net label) to the schematic at a given position.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_sheet_pin": {
+      "use": "Manually add a single pin to an existing sheet block.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_via": {
+      "use": "Add a through-hole via at a given position and assign it to a net via KiCAD IPC.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_wire": {
+      "use": "Add a wire segment between two points.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.add_zone": {
+      "use": "Add a copper fill zone polygon on a specified layer and net.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.apply_specctra_ses": {
+      "use": "Apply a fully validated Freerouting SES to the exact live KiCad board as one undo transac…",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "konnect.apply_template": {
+      "use": "Instantiate a reference circuit template into the current schematic.",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "konnect.assign_net_to_class": {
+      "use": "Assign a net to an existing netclass, as a netclass_patterns entry in the sibling .kicad_…",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "konnect.batch_add_bus": {
+      "use": "Add multiple bus segments in a single file read/write cycle.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_add_junction": {
+      "use": "Add multiple junction dots in a single file read/write cycle.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_add_no_connect": {
+      "use": "Add multiple no-connect flags in a single file read/write cycle.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_add_wire": {
+      "use": "Add multiple wire segments in a single file read/write cycle.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.delete_component": {
+      "use": "Remove a footprint from the board via KiCAD IPC.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.batch_connect_pins": {
+      "use": "Connect multiple component pin pairs by reference and pin number, in a single file read/w…",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_delete_no_connect": {
+      "use": "Delete multiple no-connect flags in a single file read/write cycle.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_delete_schematic_components": {
+      "use": "Delete multiple components by reference designator in a single atomic file write.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_delete_schematic_wire": {
+      "use": "Delete multiple wire segments in a single file read/write cycle.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_edit_schematic_components": {
+      "use": "Apply field updates (Value, Footprint, custom properties) to multiple components in a sin…",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_get_schematic_pin_locations": {
+      "use": "Get pin locations for multiple components in a single file read.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.batch_rotate_labels": {
+      "use": "Rotate multiple labels by net name in a single file read/write cycle.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "konnect.create_netclass": {
+      "use": "Create or update a netclass in the project's design rules.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.create_schematic": {
+      "use": "Create a new blank .kicad_sch schematic file, on A4 unless another paper size is given.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.delete_graphics": {
+      "use": "Delete board graphics — lines, rectangles, arcs, circles, polygons, curves, text, text bo…",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.delete_no_connect": {
+      "use": "Remove a no-connect flag at a given position.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.delete_schematic_component": {
+      "use": "Remove a component by reference designator, including every placed unit of a multi-unit s…",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.delete_schematic_net_label": {
+      "use": "Delete a net label by net name and position.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.delete_schematic_wire": {
+      "use": "Delete a wire segment by its UUID, or by matching BOTH endpoints (all four of x1/y1/x2/y2…",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.delete_sheet": {
+      "use": "Remove a sheet reference from the parent schematic.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.delete_sheet_pin": {
+      "use": "Remove a single pin from a sheet without touching the rest of the sheet.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.delete_symbol": {
+      "use": "Delete a symbol definition from a .kicad_sym library file.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.delete_trace": {
+      "use": "Delete a trace segment identified by its UUID via KiCAD IPC.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "konnect.edit_board_footprint_graphic": {
+      "use": "Replace the vertices of a polygon inside a footprint placed on the board, selected by UUI…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.edit_component": {
+      "use": "Update the value or other properties of a placed footprint via KiCAD IPC.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.edit_footprint_pad": {
+      "use": "Edit the size, shape, position, drill, or zone connection of a pad in an existing .kicad_…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.edit_schematic_component": {
+      "use": "Update fields (Reference, Value, Footprint, custom properties) consistently across every …",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.edit_sheet": {
+      "use": "Rename, resize, reposition, or repoint (Sheetfile) an existing sheet.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.edit_sheet_pin": {
+      "use": "Rename a sheet pin, change its electrical type, move it, or move it to a different edge o…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.generate_netlist": {
+      "use": "Generate a KiCAD netlist file from the schematic using kicad-cli.",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "konnect.import_svg_logo": {
+      "use": "Import an SVG file as filled silkscreen or copper artwork (a logo, icon, or other graphic…",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "konnect.move_component": {
+      "use": "Move a placed footprint to a new X/Y position.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "konnect.move_connected": {
+      "use": "REFUSED until implemented: moving a symbol while stretching its connected wires is not bu…",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "konnect.move_labels_by_offset": {
+      "use": "Move all labels matching a net name by a given X/Y offset.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "konnect.move_region": {
+      "use": "Move all symbol units whose origins are within a bounding box by a given offset.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "konnect.move_schematic_component": {
+      "use": "Move a component's lowest-numbered unit to a new position and translate every other place…",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "konnect.move_sheet": {
+      "use": "Reposition a sheet on the parent canvas without touching any other field.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "konnect.mutate_editor_selection": {
+      "use": "Clear, add to, or remove from one exact KiCad editor selection.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.open_schematic_viewer": {
+      "use": "Launch the live schematic viewer.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "konnect.save_project": {
+      "use": "Save the currently open PCB board file via KiCAD IPC.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "konnect.place_component": {
+      "use": "Place a footprint on the PCB.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.place_component_array": {
+      "use": "Place multiple copies of a footprint in a grid or line array via KiCAD IPC.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.place_decoupling_caps": {
+      "use": "Plan (and optionally apply) a row of decoupling capacitors beside an IC, from capacitor r…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "konnect.rename_project": {
+      "use": "Rename a KiCAD project: renames the .kicad_pro/.kicad_sch/.kicad_pcb/.kicad_prl files and…",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "konnect.rotate_component": {
+      "use": "Set the rotation angle of a placed footprint.",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "konnect.rotate_schematic_component": {
+      "use": "Set the lowest-numbered unit's absolute rotation and rotate every other placed unit by th…",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "konnect.rotate_schematic_label": {
+      "use": "Rotate a net label to a new angle and update its justify direction accordingly.",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "konnect.route_differential_pair": {
+      "use": "Route a differential pair (two parallel traces with a specified gap).",
+      "alt": "",
+      "bounds": "层/宽度受设计规则约束",
+      "trap": "跨层必须先过孔；布完跑 DRC",
+      "auto": true
+    },
+    "konnect.route_pad_to_pad": {
+      "use": "Route a direct trace between two pads of named components (L-bend routing) via KiCAD IPC.",
+      "alt": "",
+      "bounds": "层/宽度受设计规则约束",
+      "trap": "跨层必须先过孔；布完跑 DRC",
+      "auto": true
+    },
+    "konnect.save_project_config": {
+      "use": "Save a project-specific rule or override.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "konnect.save_user_config": {
+      "use": "Update a user preference.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "konnect.set_active_layer": {
+      "use": "Request an editor active-layer change.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_board_size": {
+      "use": "Add a rectangular board outline of the given dimensions on the Edge.Cuts layer.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_component_placements": {
+      "use": "Set X/Y positions and rotations for multiple existing footprints atomically.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_footprint_graphics": {
+      "use": "Atomically append, replace, or delete graphical primitives on one layer of an existing .k…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_footprint_metadata": {
+      "use": "Atomically replace a footprint's description, tags, or supported attributes while preserv…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_footprint_models": {
+      "use": "Atomically append, replace, or delete top-level 3D model blocks in an existing .kicad_mod…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_layer_constraints": {
+      "use": "Set per-layer design constraints (e.g.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_placed_footprint_models": {
+      "use": "Inspect, append, replace, or remove one exact 3D-model entry on a placed footprint.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_predefined_sizes": {
+      "use": "Write the PCB editor Pre-defined Sizes list (track widths and via pad/drill pairs) into t…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_schematic_page": {
+      "use": "Set the sheet's paper size (A0-A5, A-E, USLetter, USLegal, USLedger) and orientation.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.set_visual_baseline": {
+      "use": "Capture the current render of a schematic sheet as its visual baseline, stored under the …",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.update_footprints_from_library": {
+      "use": "Plan or atomically apply KiCad's Update Footprints from Library operation to placed footp…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "konnect.update_symbols_from_library": {
+      "use": "Re-embed placed symbols' definitions from their libraries, like KiCad's 'Update Symbols f…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.add_board_outline": {
+      "use": "Draw the PCB board outline (Edge.Cuts layer) as a rectangle, rounded rectangle, circle or…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_board_text": {
+      "use": "Add a text label to a PCB layer (e.g.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_component_3d_model": {
+      "use": "Attach a 3D model to one or more PLACED footprints on the open board, live via the KiCAD …",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_component_annotation": {
+      "use": "Add a text annotation or comment to a PCB component.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_copper_pour": {
+      "use": "Add a copper pour (ground/power plane) to the PCB",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_footprint_3d_model": {
+      "use": "Attach (or replace) a 3D model — .step/.stp/.wrl — to a .kicad_mod footprint file.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_gnd_stitching_vias": {
+      "use": "Drop GND stitching vias across the board with collision checking against every non-GND se…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_layer": {
+      "use": "Add a new copper or technical layer to the PCB stackup.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_hierarchical_sheet": {
+      "use": "Insert a hierarchical-sheet reference block into a parent schematic, pointing at an exist…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_library_symbol_property": {
+      "use": "Add or update a custom property (Manufacturer, MPN, LCSC, etc.) on a symbol definition in…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_mounting_hole": {
+      "use": "Place a mounting hole (NPTH or PTH) at the specified position on the PCB.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_net": {
+      "use": "Create a new net on the PCB",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_no_connect": {
+      "use": "Add a no-connect flag (X marker) to a pin that is intentionally left unconnected.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_schematic_component": {
+      "use": "Add a component to the schematic.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_schematic_hierarchical_label": {
+      "use": "Add a hierarchical label (sheet interface port) to a sub-sheet schematic.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_schematic_net_label": {
+      "use": "Add a net label to the schematic.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_schematic_text": {
+      "use": "Add a free-form text annotation to the schematic.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_schematic_wire": {
+      "use": "Draws a wire on the schematic between two or more coordinate points.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_sheet_pin": {
+      "use": "Add a pin to a sheet symbol block on the parent schematic.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_symbol_property": {
+      "use": "Add or update a custom property (Manufacturer, MPN, LCSC, etc.) on a symbol in a .kicad_s…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_via": {
+      "use": "Add a via to the PCB",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.add_zone": {
+      "use": "Create a copper fill zone (pour) on a PCB layer for a specified net.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.assign_net_to_class": {
+      "use": "Assign a net to an existing net class to apply its specific design rules.",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "kicad-gui.batch_add_and_connect": {
+      "use": "Place multiple components AND wire their nets in a single call — the fewest-round-trip wa…",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "kicad-gui.batch_add_components": {
+      "use": "Add multiple components to a schematic in one call (far fewer round-trips than add_schema…",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "kicad-gui.batch_add_no_connects": {
+      "use": "Add no-connect (X) flags to multiple pins in one call, to mark intentionally unconnected …",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "kicad-gui.batch_connect": {
+      "use": "Place net labels on multiple pins in one call to wire nets quickly.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "kicad-gui.batch_edit_schematic_components": {
+      "use": "Edit multiple existing components in one call.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "kicad-gui.batch_list_symbol_pins": {
+      "use": "Return pin names, numbers, types, and symbol-local coordinates for multiple symbols in a …",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "kicad-gui.batch_move_components": {
+      "use": "Move multiple PCB components transactionally.",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "kicad-gui.batch_set_schematic_property_positions": {
+      "use": "Move many Reference/Value field labels in a single file read/write — far faster than repe…",
+      "alt": "",
+      "bounds": "整批原子：一条不合法则整批不动",
+      "trap": "先小批验证再全量",
+      "auto": true
+    },
+    "kicad-gui.close_project": {
+      "use": "Close the currently loaded KiCAD project: optionally save, then drop the in-memory board …",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.close_toolbox": {
+      "use": "Close one or more toolboxes to remove their tools from your tool list and free context.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.create_board_from_schematic": {
+      "use": "Create a new .kicad_pcb file from a schematic, then update the PCB from that schematic so…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.create_footprint": {
+      "use": "Create a new KiCAD footprint (.kicad_mod) inside a .pretty library directory.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.create_hierarchical_subsheet": {
+      "use": "Create a new sub-sheet .kicad_sch file and link it into a parent schematic in a single ca…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.create_netclass": {
+      "use": "Create a new net class with custom design rules, optionally assigning nets to it immediat…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.create_project": {
+      "use": "Create a new KiCAD project",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.create_schematic": {
+      "use": "Create a new schematic",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.delete_graphic": {
+      "use": "Delete a PCB graphic/drawing item by UUID.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.create_symbol": {
+      "use": "Create a new schematic symbol in a .kicad_sym library file (created if missing).",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.delete_component": {
+      "use": "Remove a component from the PCB by its reference designator.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.delete_schematic_component": {
+      "use": "Remove a placed symbol from a KiCAD schematic (.kicad_sch).",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.delete_schematic_net_label": {
+      "use": "Remove a net label from the schematic.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.delete_schematic_wire": {
+      "use": "Remove a wire from the schematic by start and end coordinates.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.delete_symbol": {
+      "use": "Remove a symbol from a .kicad_sym library file.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.delete_trace": {
+      "use": "Delete traces from the PCB.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.edit_component": {
+      "use": "Edit properties of an existing PCB component (reference, value, footprint).",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.edit_footprint_pad": {
+      "use": "Edit an existing pad inside a .kicad_mod footprint file.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.edit_schematic_component": {
+      "use": "Update properties of a placed symbol in a KiCAD schematic (.kicad_sch) in-place.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.generate_netlist": {
+      "use": "Return a structured JSON netlist from the schematic — component list (reference, value, f…",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "kicad-gui.import_ses": {
+      "use": "Import a Specctra SES (session) file into the current PCB.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.import_3d_model": {
+      "use": "Copy a 3D model file (.step/.stp/.wrl/.x3d/.iges) into the project's *.3dshapes library f…",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.import_eagle_project": {
+      "use": "Import an Eagle project (.brd + .sch) and convert it to a KiCad project.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.import_pcb": {
+      "use": "Import a vendor PCB file (PADS, Altium, Eagle, CADSTAR, Fabmaster, P-CAD, SolidWorks PCB,…",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.import_svg_logo": {
+      "use": "Imports an SVG file as filled graphic polygons onto a KiCAD PCB layer (default F.SilkS / …",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.import_symbol": {
+      "use": "Copy a symbol from one .kicad_sym library into another, with optional rename and overwrit…",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.refill_zones": {
+      "use": "Refill all copper zones on the board.",
+      "alt": "",
+      "bounds": "重算铺铜填充",
+      "trap": "出板前必须 refill，否则铜是空的",
+      "auto": true
+    },
+    "kicad-gui.move_component": {
+      "use": "Move a PCB component to a new position.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.move_footprint_text": {
+      "use": "Move or update a footprint Reference/Value/user text field without moving the footprint.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.move_schematic_component": {
+      "use": "Move a placed symbol to a new position in the schematic.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.move_schematic_net_label": {
+      "use": "Move a net label (local, global, or hierarchical) to a new position in the schematic.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.open_board": {
+      "use": "Open a specific .kicad_pcb board file and refresh the MCP in-memory board state.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.open_project": {
+      "use": "Open an existing KiCAD project",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.open_toolbox": {
+      "use": "Open one or more toolboxes (see list_toolboxes) to add their tools to your tool list.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.place_component": {
+      "use": "Place a footprint component onto the PCB at the specified position.",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.place_component_array": {
+      "use": "Place a rectangular grid array of identical components on the PCB with configurable row/c…",
+      "alt": "",
+      "bounds": "参数按 schema；坐标单位以工具为准（KiCAD PCB=mm、原理图走网格）",
+      "trap": "建完回读确认；批量前先 snapshot/存档",
+      "auto": true
+    },
+    "kicad-gui.remove_hierarchical_sheet": {
+      "use": "Remove a hierarchical-sheet reference from a parent schematic (the reverse of add_hierarc…",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.remove_library_table_entry": {
+      "use": "Remove one or more entries from a sym-lib-table or fp-lib-table by nickname — the counter…",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.remove_schematic_component_property": {
+      "use": "Remove a single custom property from a placed schematic symbol.",
+      "alt": "",
+      "bounds": "不可逆",
+      "trap": "删前先 list/get 确认目标集合",
+      "auto": true
+    },
+    "kicad-gui.rename_symbol": {
+      "use": "Rename a symbol in a .kicad_sym library, including its sub-symbol shards (name_0_1, ...) …",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.replace_board_outline": {
+      "use": "Replace the current Edge.Cuts board outline with a rectangle, rounded rectangle, circle o…",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.replace_component": {
+      "use": "Replace an existing PCB component with a different component type, optionally changing fo…",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.replace_instance_lib_ids": {
+      "use": "Replace lib_id references in schematic symbol instances per an explicit old-to-new mappin…",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.replace_schematic_component": {
+      "use": "Replace a placed component's symbol with a different one (e.g.",
+      "alt": "",
+      "bounds": "会改引用/几何",
+      "trap": "操作前 snapshot；改完核网表/DRC",
+      "auto": true
+    },
+    "kicad-gui.rotate_component": {
+      "use": "Rotate a PCB component to an absolute angle in degrees.",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "kicad-gui.rotate_schematic_component": {
+      "use": "Rotate a placed symbol in the schematic.",
+      "alt": "",
+      "bounds": "参数按 schema",
+      "trap": "改完回读",
+      "auto": true
+    },
+    "kicad-gui.route_arc_trace": {
+      "use": "Route a copper arc trace defined by start/mid/end points.",
+      "alt": "",
+      "bounds": "层/宽度受设计规则约束",
+      "trap": "跨层必须先过孔；布完跑 DRC",
+      "auto": true
+    },
+    "kicad-gui.route_differential_pair": {
+      "use": "Route a differential pair as two parallel straight segments.",
+      "alt": "",
+      "bounds": "层/宽度受设计规则约束",
+      "trap": "跨层必须先过孔；布完跑 DRC",
+      "auto": true
+    },
+    "kicad-gui.route_pad_to_pad": {
+      "use": "PREFERRED tool for pad-to-pad routing.",
+      "alt": "",
+      "bounds": "层/宽度受设计规则约束",
+      "trap": "跨层必须先过孔；布完跑 DRC",
+      "auto": true
+    },
+    "kicad-gui.route_trace": {
+      "use": "Route a trace segment between two XY points on a fixed layer.",
+      "alt": "",
+      "bounds": "层/宽度受设计规则约束",
+      "trap": "跨层必须先过孔；布完跑 DRC",
+      "auto": true
+    },
+    "kicad-gui.save_as": {
+      "use": "Save the current PCB board to a new .kicad_pcb path.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.save_board": {
+      "use": "Save the current PCB board.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.set_active_layer": {
+      "use": "Set the currently active PCB layer by name (e.g.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.save_project": {
+      "use": "Save the current KiCAD project.",
+      "alt": "",
+      "bounds": "落库/生效以回读为准",
+      "trap": "别只看返回值；跨步骤别中途卸载",
+      "auto": true
+    },
+    "kicad-gui.set_board_origin": {
+      "use": "Set the auxiliary (drill/place) origin and/or grid origin of a .kicad_pcb.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_board_size": {
+      "use": "Set the PCB board dimensions (width and height) in the specified unit.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_design_rules": {
+      "use": "Configure PCB design rules: clearance, track width, via dimensions and courtyard requirem…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_footprint_type": {
+      "use": "Set the placement type (through_hole / smd / unspecified) and optional exclusion flags on…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_layer_constraints": {
+      "use": "Set per-layer design rule constraints (minimum track width, clearance and via dimensions).",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_net_color": {
+      "use": "Set or clear a net's display color override (the PCB editor's 'Net colors' panel).",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_library_table_uri": {
+      "use": "Repoint an existing library-table entry at a different file, keeping its nickname, type a…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_schematic_component_property": {
+      "use": "Add or update a single custom property on a placed schematic symbol.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_schematic_property_position": {
+      "use": "Move a component's Reference or Value field label to an absolute (x, y) coordinate (mm), …",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_sheet_property": {
+      "use": "Add or update a custom property on a hierarchical sheet's (sheet ...) block — e.g.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.set_symbol_pin_type": {
+      "use": "Set the electrical type (and optionally the graphic style) of pins in a .kicad_sym librar…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.update_graphic": {
+      "use": "Update common properties of a PCB graphic/drawing item by UUID.",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    },
+    "kicad-gui.update_symbol_from_library": {
+      "use": "Refresh embedded lib_symbols cache entries from a KiCad symbol library (equivalent to KiC…",
+      "alt": "",
+      "bounds": "只改指定字段",
+      "trap": "改完回读校验；影响 DRC/ERC 的要重跑",
+      "auto": true
+    }
+  }
+}
