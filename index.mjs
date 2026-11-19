@@ -959,15 +959,15 @@ const TOOLS = [
   },
   {
     name: 'describe',
-    description: 'Full description and exact JSON parameter schema of one catalogued tool. '
-      + 'Step 2 of catalog -> describe -> call: call is rejected until this tool has been described in the session. '
+    description: 'Full description and parameter contract (per-op table; raw JSON schema only via "#schema") of one catalogued tool. '
+      + 'Step 2 of catalog -> describe -> call. Describing first is recommended, not required: an undescribed first call is allowed and returns the same manual at the end. '
       + 'For a multi-op tool you may fetch a single branch: "server.tool#op:<value>".',
     inputSchema: { type: 'object', properties: { tool: { type: 'string', description: 'server.tool, mcp__server__tool, or a unique bare tool name.' } }, required: ['tool'] },
   },
   {
     name: 'call',
     description: 'Invoke one catalogued MCP tool and return its result verbatim (text and images). '
-      + 'Step 3 of catalog -> describe -> call: requires describe({tool:"<server>.<tool>"}) first in this session.',
+      + 'Step 3 of catalog -> describe -> call: describe is optional; an undescribed first call is dispatched and its manual is appended at the end.',
     inputSchema: { type: 'object', properties: {
       tool: { type: 'string', description: 'server.tool, mcp__server__tool, or a unique bare tool name.' },
       arguments: { type: 'object', description: 'Arguments object; omit when the tool takes none.' },
