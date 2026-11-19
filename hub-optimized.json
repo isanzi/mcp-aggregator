@@ -52,14 +52,6 @@
    "at": "2026-11-06T03:55:12.765Z",
    "sig": "346:1188"
   },
-  "lceda-tools.lceda_symbol_create": {
-   "at": "2026-11-06T03:55:11.076Z",
-   "sig": "311:1981"
-  },
-  "lceda-tools.lceda_device_create": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "103:868"
-  },
   "lceda-tools.lceda_project_open": {
    "at": "2026-11-06T03:55:11.075Z",
    "sig": "201:242"
@@ -171,46 +163,6 @@
   "lceda-tools.lceda_prefetch": {
    "at": "2026-11-06T03:55:11.075Z",
    "sig": "398:712"
-  },
-  "lceda-tools.lceda_symbol_inspect": {
-   "at": "2026-11-06T03:55:12.765Z",
-   "sig": "96:204"
-  },
-  "lceda-tools.lceda_footprint_create": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "381:3075"
-  },
-  "lceda-tools.lceda_footprint_from_qfn_spec": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "321:1609"
-  },
-  "lceda-tools.lceda_footprint_clone": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "255:512"
-  },
-  "lceda-tools.lceda_footprint_paste": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "221:675"
-  },
-  "lceda-tools.lceda_footprint_inspect": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "175:204"
-  },
-  "lceda-tools.lceda_footprint_export_source": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "231:204"
-  },
-  "lceda-tools.lceda_footprint_list": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "48:220"
-  },
-  "lceda-tools.lceda_footprint_delete": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "237:330"
-  },
-  "lceda-tools.lceda_model3d_import": {
-   "at": "2026-11-06T03:55:11.075Z",
-   "sig": "197:294"
   },
   "lceda-tools.lceda_board_outline": {
    "at": "2026-11-06T03:55:11.075Z",

@@ -1,0 +1,841 @@
+{
+ "_comment": "每 op 参数表的人工权威口径（sidecar）。只列派生不可靠的工具：描述里孤立的『（必填）』、『二选一』、批量确认等。未列出的工具走 op-table.mjs 自动派生。required 进预检硬拦；weak 只提示。改这里后必须重跑 tests/_optable.mjs。",
+ "ops": {
+  "lceda-tools.lceda_fp_pads": {
+   "opKey": "op",
+   "ops": {
+    "read": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "set": {
+     "required": [
+      "uuid",
+      "pads"
+     ]
+    },
+    "setOne": {
+     "required": [
+      "uuid",
+      "num",
+      "patch"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_fp_mask": {
+   "opKey": "op",
+   "ops": {
+    "read": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "setMask": {
+     "required": [
+      "uuid",
+      "value"
+     ]
+    },
+    "setPaste": {
+     "required": [
+      "uuid",
+      "value"
+     ]
+    },
+    "pasteOff": {
+     "required": [
+      "uuid"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_fp_silk": {
+   "opKey": "op",
+   "ops": {
+    "read": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "setBody": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "clear": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "addLine": {
+     "required": [
+      "uuid",
+      "lines"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_fp_meta": {
+   "opKey": "op",
+   "ops": {
+    "list": {
+     "required": []
+    },
+    "get": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "source": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "delete": {
+     "required": [
+      "uuid"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_symbol": {
+   "opKey": "op",
+   "ops": {
+    "create": {
+     "required": [
+      "name"
+     ],
+     "weak": [
+      "uuid"
+     ]
+    },
+    "read": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "modify": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "delete": {
+     "required": [
+      "uuid"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_device": {
+   "opKey": "op",
+   "ops": {
+    "create": {
+     "required": []
+    },
+    "read": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "modify": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "delete": {
+     "required": [],
+     "weak": [
+      "uuid",
+      "uuids"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_model3d": {
+   "opKey": "op",
+   "ops": {
+    "import": {
+     "required": [
+      "filePath"
+     ]
+    },
+    "list": {
+     "required": []
+    },
+    "get": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "delete": {
+     "required": [
+      "uuid"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_lib": {
+   "opKey": "op",
+   "ops": {
+    "search": {
+     "required": [
+      "keyword"
+     ]
+    },
+    "list": {
+     "required": []
+    },
+    "get": {
+     "required": [
+      "uuid"
+     ]
+    },
+    "classification": {
+     "required": []
+    }
+   }
+  },
+  "lceda-tools.lceda_datasheet": {
+   "opKey": "op",
+   "ops": {
+    "search": {
+     "required": [
+      "keyword"
+     ]
+    },
+    "fetch": {
+     "required": [],
+     "weak": [
+      "lcsc",
+      "deviceUuid"
+     ]
+    },
+    "list": {
+     "required": []
+    }
+   }
+  },
+  "lceda-tools.lceda_text": {
+   "opKey": "action",
+   "ops": {
+    "list": {
+     "required": []
+    },
+    "create": {
+     "required": [
+      "text"
+     ],
+     "weak": [
+      "content"
+     ]
+    },
+    "set": {
+     "required": [
+      "id",
+      "text"
+     ],
+     "weak": [
+      "content"
+     ]
+    },
+    "move": {
+     "required": [
+      "id"
+     ]
+    },
+    "delete": {
+     "required": [],
+     "weak": [
+      "id",
+      "ids",
+      "match"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_layer": {
+   "opKey": "op",
+   "ops": {
+    "list": {
+     "required": []
+    },
+    "show": {
+     "required": [
+      "layers"
+     ]
+    },
+    "hide": {
+     "required": [
+      "layers"
+     ]
+    },
+    "only": {
+     "required": [
+      "layers"
+     ]
+    },
+    "restore": {
+     "required": []
+    }
+   }
+  },
+  "lceda-tools.lceda_doc": {
+   "opKey": "op",
+   "ops": {
+    "list": {
+     "required": []
+    },
+    "open": {
+     "required": [
+      "kind",
+      "uuid"
+     ]
+    },
+    "activate": {
+     "required": [
+      "tabId"
+     ]
+    },
+    "close": {
+     "required": [],
+     "weak": [
+      "uuid",
+      "tabId"
+     ]
+    },
+    "closeAll": {
+     "required": [
+      "confirm"
+     ]
+    },
+    "preview3d": {
+     "required": [
+      "kind",
+      "uuid"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_probe": {
+   "opKey": "op",
+   "ops": {
+    "signature": {
+     "required": [
+      "expr"
+     ]
+    },
+    "methods": {
+     "required": [
+      "className"
+     ]
+    }
+   }
+  },
+  "lceda-tools.lceda_board_outline": {
+   "opKey": "action",
+   "ops": {
+    "read": {
+     "required": []
+    },
+    "set_rect": {
+     "required": [
+      "x0",
+      "y0",
+      "x1",
+      "y1"
+     ]
+    },
+    "set_polygon": {
+     "required": [
+      "points"
+     ]
+    },
+    "verify": {
+     "required": []
+    }
+   }
+  },
+  "lceda-tools.lceda_pour": {
+   "opKey": "action",
+   "ops": {
+    "read": {
+     "required": []
+    },
+    "compute": {
+     "required": []
+    },
+    "fill": {
+     "required": []
+    }
+   }
+  },
+  "lceda-tools.lceda_netcheck": {
+   "opKey": "action",
+   "ops": {
+    "snapshot": {
+     "required": []
+    },
+    "check": {
+     "required": []
+    },
+    "diff": {
+     "required": []
+    },
+    "list": {
+     "required": []
+    },
+    "prune": {
+     "required": []
+    }
+   }
+  },
+  "lceda-tools.lceda_document_source": {
+   "opKey": "action",
+   "ops": {
+    "count": {
+     "required": []
+    },
+    "read": {
+     "required": []
+    },
+    "backup": {
+     "required": []
+    },
+    "restore": {
+     "required": []
+    },
+    "drop": {
+     "required": [],
+     "weak": [
+      "dropIds",
+      "dropValues"
+     ]
+    }
+   }
+  },
+  "dshlink.app": {
+   "opKey": "action",
+   "ops": {
+    "info": {
+     "required": [
+      "pkg"
+     ]
+    },
+    "start": {
+     "required": [
+      "pkg"
+     ]
+    },
+    "stop": {
+     "required": [
+      "pkg"
+     ]
+    },
+    "restart": {
+     "required": [
+      "pkg"
+     ]
+    }
+   }
+  },
+  "dshlink.files": {
+   "opKey": "action",
+   "ops": {
+    "list": {
+     "required": []
+    },
+    "pull": {
+     "required": [],
+     "weak": [
+      "id",
+      "name"
+     ]
+    }
+   }
+  },
+  "dshlink.key": {
+   "opKey": "action",
+   "ops": {
+    "back": {
+     "required": []
+    },
+    "home": {
+     "required": []
+    },
+    "recents": {
+     "required": []
+    },
+    "notifications": {
+     "required": []
+    },
+    "quicksettings": {
+     "required": []
+    },
+    "lock": {
+     "required": []
+    }
+   }
+  },
+  "playwright.browser_tabs": {
+   "opKey": "action",
+   "ops": {
+    "list": {
+     "required": []
+    },
+    "new": {
+     "required": [],
+     "weak": [
+      "url"
+     ]
+    },
+    "close": {
+     "required": []
+    },
+    "select": {
+     "required": [
+      "index"
+     ]
+    }
+   }
+  },
+  "chrome-devtools.handle_dialog": {
+   "opKey": "action",
+   "ops": {
+    "accept": {
+     "required": []
+    },
+    "dismiss": {
+     "required": []
+    }
+   }
+  },
+  "chrome-devtools.lighthouse_audit": {
+   "opKey": "mode",
+   "ops": {
+    "navigation": {
+     "required": []
+    },
+    "snapshot": {
+     "required": []
+    }
+   }
+  },
+  "jlceda-native.pcb_realtime_drc": {
+   "opKey": "action",
+   "ops": {
+    "status": {
+     "required": []
+    },
+    "start": {
+     "required": []
+    },
+    "stop": {
+     "required": []
+    }
+   }
+  },
+  "jlceda-native.schematic_layout_check": {
+   "opKey": "mode",
+   "paramDocs": {
+    "mode": "默认 check：只报告碰撞/越界/密集区；fix 会真的移动属性文本，必须同时 confirm:true",
+    "confirm": "mode=fix 时的显式确认；缺它直接拒绝执行",
+    "denseThreshold": "密集区判定阈值（该区域内重叠对象数），2–50，默认 5",
+    "allPages": "默认 false：只查当前页；true 时读全工程页面的组件",
+    "timeoutMs": "布局检查桥接超时毫秒",
+    "pageBounds": "可选页面工作区边界 {…}；官方 API 没给结构化尺寸时用它做越界判定"
+   },
+   "ops": {
+    "check": {
+     "required": [],
+     "optional": [
+      "allPages",
+      "denseThreshold",
+      "timeoutMs",
+      "pageBounds"
+     ]
+    },
+    "fix": {
+     "required": [
+      "confirm"
+     ],
+     "optional": [
+      "allPages",
+      "denseThreshold",
+      "timeoutMs",
+      "pageBounds"
+     ]
+    }
+   }
+  },
+  "jlceda-native.library_classification_query": {
+   "opKey": "kind",
+   "paramDocs": {
+    "kind": "查哪类库的分类树：device 器件 / symbol 符号 / footprint 封装 / model_3d 3D 模型 / cbb 复用模块 / panel_library 面板库",
+    "libraryUuid": "目标库 uuid；省略则用当前工程的库",
+    "maxNodes": "最多返回多少个节点，1–2000，默认 500（大库靠它限流）",
+    "maxDepth": "分类树下钻深度，1–20，默认 8",
+    "timeoutMs": "桥接超时毫秒，5 000–120 000，默认 30 000"
+   },
+   "ops": {
+    "device": {
+     "required": [
+      "libraryUuid"
+     ],
+     "optional": [
+      "maxNodes",
+      "maxDepth",
+      "timeoutMs"
+     ]
+    },
+    "symbol": {
+     "required": [
+      "libraryUuid"
+     ],
+     "optional": [
+      "maxNodes",
+      "maxDepth",
+      "timeoutMs"
+     ]
+    },
+    "footprint": {
+     "required": [
+      "libraryUuid"
+     ],
+     "optional": [
+      "maxNodes",
+      "maxDepth",
+      "timeoutMs"
+     ]
+    },
+    "model_3d": {
+     "required": [
+      "libraryUuid"
+     ],
+     "optional": [
+      "maxNodes",
+      "maxDepth",
+      "timeoutMs"
+     ]
+    },
+    "cbb": {
+     "required": [
+      "libraryUuid"
+     ],
+     "optional": [
+      "maxNodes",
+      "maxDepth",
+      "timeoutMs"
+     ]
+    },
+    "panel_library": {
+     "required": [
+      "libraryUuid"
+     ],
+     "optional": [
+      "maxNodes",
+      "maxDepth",
+      "timeoutMs"
+     ]
+    }
+   }
+  },
+  "pdf.read_pdf": {
+   "opKey": "mode",
+   "ops": {
+    "auto": {
+     "required": [
+      "file_path"
+     ]
+    },
+    "text_only": {
+     "required": [
+      "file_path"
+     ]
+    },
+    "image_only": {
+     "required": [
+      "file_path"
+     ]
+    }
+   }
+  }
+ },
+ "paramDocs": {
+  "jlceda-native.schematic_drc_check": {
+   "strict": "默认 true：严格模式，把警告级也计为违规",
+   "showUi": "默认 false：true 时在 EDA 界面弹出 DRC 面板",
+   "timeoutMs": "桥接超时毫秒，5000–120000，默认 60000"
+  },
+  "jlceda-native.netlist_compare": {
+   "sourceA": "基准网表：网表文本/路径字符串，或 {projectUuid,documentUuid} 指向文档",
+   "sourceB": "对照网表：形式同 sourceA；与 sourceA 一起必填",
+   "timeoutMs": "桥接超时毫秒，5000–120000，默认 60000"
+  },
+  "jlceda-native.project_info": {
+   "includePages": "默认 true：列出当前工程全部原理图图页（在 PCB 页上也能读）",
+   "limit": "原理图/PCB/板/面板各类文档目录最多列几条，1–500，默认 100"
+  },
+  "jlceda-native.manufacture_templates_query": {
+   "domain": "pcb=BOM 模板；schematic=装配变体 assembly variants"
+  },
+  "jlceda-native.pcb_layer_query": {
+   "kind": "目前只支持 layers：读 PCB 层定义与铜层数"
+  },
+  "jlceda-native.schematic_layout_check": {
+   "mode": "默认 check 只报告碰撞/越界/密集区；fix 会真的移动属性文本，必须同时 confirm:true",
+   "confirm": "mode=fix 的显式确认；缺它直接拒绝",
+   "denseThreshold": "密集区判定阈值（区域内重叠对象数），2–50，默认 5",
+   "allPages": "默认 false 只查当前页；true 读全工程页面组件",
+   "timeoutMs": "布局检查桥接超时毫秒",
+   "pageBounds": "可选页面工作区边界；官方 API 无结构化尺寸时用它判越界"
+  },
+  "jlceda-native.eda_canvas_snapshot": {
+   "timeoutMs": "桥接超时毫秒，5000–120000，默认见该工具（标准读 30000 / 扩展读 60000）"
+  },
+  "jlceda-native.footprint_read": {
+   "timeoutMs": "桥接超时毫秒，5000–120000，默认见该工具（标准读 30000 / 扩展读 60000）"
+  },
+  "jlceda-native.pcb_read": {
+   "timeoutMs": "桥接超时毫秒，5000–120000，默认见该工具（标准读 30000 / 扩展读 60000）"
+  },
+  "jlceda-native.pcb_drc_check": {
+   "timeoutMs": "DRC 属于长时间读，桥接超时毫秒，5000–120000，默认 60000"
+  },
+  "jlceda-native.board_setup": {
+   "timeoutMs": "桥接超时毫秒，5000–120000，默认见该工具（标准读 30000 / 扩展读 60000）"
+  },
+  "jlceda-native.library_sources": {
+   "limit": "每个来源最多列几条，默认 50",
+   "timeoutMs": "桥接超时毫秒，5000–120000，默认见该工具（标准读 30000 / 扩展读 60000）"
+  },
+  "jlceda-native.pcb_realtime_drc": {
+   "action": "status=查实时 DRC 状态；start=开启；stop=关闭"
+  },
+  "jlceda-native.library_classification_query": {
+   "kind": "查哪类库的分类树：device 器件 / symbol 符号 / footprint 封装 / model_3d 3D 模型 / cbb 复用模块 / panel_library 面板库",
+   "libraryUuid": "目标库 uuid（必填）；用 project_info 或 lceda_status 取库 uuid",
+   "maxNodes": "最多返回多少节点，1–2000，默认 500",
+   "maxDepth": "分类树下钻深度，1–20，默认 8",
+   "timeoutMs": "桥接超时毫秒，5000–120000，默认 30000"
+  },
+  "lceda-tools.lceda_zoom": {
+   "designator": "单个器件位号（如 \"U1\"）；与 designators / bbox 三选一",
+   "designators": "多个位号，如 [\"U1\",\"C1\"]：包围盒取并集后一次裁出",
+   "x1": "显式 bbox 左下 X（图纸单位）；需与 x2 同时给",
+   "y1": "显式 bbox 左下 Y（图纸单位）",
+   "x2": "显式 bbox 右上 X（图纸单位）",
+   "y2": "显式 bbox 右上 Y（图纸单位）",
+   "scale": "放大倍数，实际 1–12，默认 4"
+  },
+  "lceda-tools.lceda_pinmap": {
+   "deviceUuid": "系统库器件 uuid（与 lcsc 二选一）",
+   "libraryUuid": "器件所在库 uuid；省略依次试工程库→个人库→系统库"
+  },
+  "lceda-tools.lceda_text": {
+   "x": "create 的图纸 X 坐标（与 y 同时给）",
+   "y": "create 的图纸 Y 坐标（与 x 同时给）"
+  },
+  "lceda-tools.lceda_project_list": {
+   "teamUuid": "团队 uuid；省略取当前工程所属团队"
+  },
+  "lceda-tools.lceda_project_create": {
+   "description": "工程描述（可省，只写云端简介）"
+  },
+  "lceda-tools.lceda_project_open": {
+   "uuid": "云端工程 uuid（来自 lceda_project_list/create）"
+  },
+  "lceda-tools.lceda_project_delete": {
+   "uuid": "要删的云端工程 uuid",
+   "teamUuid": "工程所属团队 uuid；省略取当前团队"
+  },
+  "lceda-tools.lceda_device": {
+   "symbolUuid": "关联符号 uuid",
+   "footprintUuid": "关联封装 uuid",
+   "model3DUuid": "关联 3D 模型 uuid（可能存于 otherProperty[3D Model]）",
+   "description": "器件描述，用于库内检索",
+   "name": "器件名（create 必填）"
+  },
+  "lceda-tools.lceda_fp_build": {
+   "description": "封装描述（可省，便于检索）",
+   "templateLibraryUuid": "模板封装所在库；省略与 libraryUuid 同库",
+   "silkLineWidth": "丝印线宽（mil）；省略用默认线宽",
+   "bodyOutlineWidth": "外形层线宽（mil）；仅在给 bodyOutlineLayerId 时生效",
+   "expectProject": "可选：当前活动工程名片段断言"
+  },
+  "freecad.create_document": {
+   "name": "要新建的文档名（已存在会报错）"
+  },
+  "freecad.create_object": {
+   "doc_name": "目标文档名（须已打开，见 list_documents）",
+   "obj_type": "对象类型，必须是 FreeCAD 已注册的 C++ 类型，如 Part::Box / Part::Cylinder / Part::Cut / PartDesign::Body",
+   "obj_name": "对象名（普通类型按此命名；Draft 工厂类会改名，后续一律用返回的 object_name）",
+   "analysis_name": "Fem 分析容器名（仅 Fem:: 类型需要）",
+   "obj_properties": "属性字典，如 {Height:30, Radius:10, Placement:{...}}；Part::Cut 用 {Base,Tool} 指对象名",
+   "include_screenshot": "是否回模型截图（默认 true）；中间步骤填 false 省 token",
+   "view_name": "截图视角，默认 Isometric"
+  },
+  "freecad.edit_object": {
+   "doc_name": "目标文档名",
+   "obj_name": "要改的对象名（以 get_objects 返回为准）",
+   "obj_properties": "要改的属性字典（只给要变的键）",
+   "include_screenshot": "是否回模型截图（默认 true）",
+   "view_name": "截图视角，默认 Isometric"
+  },
+  "freecad.delete_object": {
+   "doc_name": "目标文档名",
+   "obj_name": "要删的对象名",
+   "include_screenshot": "是否回模型截图（默认 true）",
+   "view_name": "截图视角，默认 Isometric"
+  },
+  "freecad.execute_code_async": {
+   "code": "后台安全的 Python 代码；文档/视图写入一律包在 commit(fn) 里，别直接改"
+  },
+  "freecad.execute_code_headless": {
+   "code": "完整的 freecadcmd 脚本（独立进程，不碰 GUI）",
+   "timeout": "等待秒数（默认 600，正数）；超时会杀掉进程但保留部分输出"
+  },
+  "freecad.get_async_status": {
+   "job_id": "execute_code_async 返回的 id；留空=列运行中 + 最近 20 个已完成任务"
+  },
+  "freecad.execute_code": {
+   "code": "在 GUI 线程执行的 Python 代码",
+   "include_screenshot": "是否回模型截图（默认 true）；只打印结果的计算脚本填 false",
+   "view_name": "截图视角，默认 Isometric",
+   "timeout": "队列与 GUI 各段预算秒数，默认 90、上限 1800；大 STEP 导入/导出要调高"
+  },
+  "freecad.get_view": {
+   "view_name": "视角名（Isometric/Front/Top/Right/Back/Left/Bottom/Dimetric/Trimetric）",
+   "width": "截图像素宽，省略用视口宽",
+   "height": "截图像素高，省略用视口高",
+   "focus_object": "聚焦到某个对象；省略=fit 全部对象"
+  },
+  "freecad.insert_part_from_library": {
+   "relative_path": "标准件相对路径（以 get_parts_list 返回为准，别用显示名）",
+   "include_screenshot": "是否回模型截图（默认 true）",
+   "view_name": "截图视角，默认 Isometric"
+  },
+  "freecad.get_objects": {
+   "doc_name": "目标文档名",
+   "include_screenshot": "是否回截图（默认 true）；只要对象数据填 false",
+   "view_name": "截图视角，默认 Isometric"
+  },
+  "freecad.get_object": {
+   "doc_name": "目标文档名",
+   "obj_name": "对象名（以 get_objects 返回为准）",
+   "include_screenshot": "是否回截图（默认 true）；只要对象数据填 false",
+   "view_name": "截图视角，默认 Isometric"
+  },
+  "freecad.reload_document": {
+   "doc_name": "要重载的已打开文档名（须与 list_documents 一致）"
+  },
+  "freecad.run_fem_analysis": {
+   "doc_name": "FreeCAD 文档名",
+   "analysis_name": "Fem::AnalysisPython 对象名（不是文档名）",
+   "timeout": "等求解器秒数，默认 600",
+   "include_screenshot": "是否回截图（默认 true）；只要数值填 false",
+   "view_name": "截图视角，默认 Isometric"
+  }
+ }
+}

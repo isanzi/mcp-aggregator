@@ -245,109 +245,17 @@
      "超时与重发"
     ],
     "body": "单次 28 s：超时=调用方拿不到返回，但 EDA 侧代码仍在跑完。超时后先回读现状（lceda_status / lceda_audit）再决定是否重发。"
-   }
-  },
-  "lceda-tools.lceda_symbol_create": {
-   "overview": {
-    "title": "总览",
-    "tags": [
-     "symbol",
-     "符号",
-     "建库",
-     "总览"
-    ],
-    "body": "建符号并落库：create→openInEditor→断言活动文档为空符号（非空中止，绝不画进别人的符号）→画引脚→画框→逐脚 Pin Type→save→回读计数。"
    },
-   "pins": {
-    "title": "引脚与电气类型",
+   "pitfalls": {
+    "title": "两个硬坑：表达式拦截 / LCSC 串号",
     "tags": [
-     "pin",
-     "pintype",
-     "引脚",
-     "类型",
-     "引脚与电气类型",
-     "电气类型",
-     "pin type"
+     "pitfalls",
+     "execute",
+     "async",
+     "getByLcscIds",
+     "timeout"
     ],
-    "body": "坐标 0.01 inch，pin 间距建议 10。必须逐脚设 Pin Type（input/output/power/passive…），留默认会让 ERC 误判。"
-   },
-   "verify": {
-    "title": "落库验收",
-    "tags": [
-     "verify",
-     "回读",
-     "验收",
-     "落库验收"
-    ],
-    "body": "以回读 PIN/RECT/ATTR 计数为准；再用 lceda_symbol_inspect 逐脚核对 Number/Name/Type。"
-   }
-  },
-  "lceda-tools.lceda_footprint_create": {
-   "overview": {
-    "title": "总览",
-    "tags": [
-     "footprint",
-     "封装",
-     "建库",
-     "总览"
-    ],
-    "body": "建封装并落库：create（名字不可改）→换焊盘表→清骨架装饰→画本体丝印→回读。坐标 mil（1mm=39.37）。默认写个人库（4.1.78 上工程库写源必失败）。"
-   },
-   "pads": {
-    "title": "焊盘表",
-    "tags": [
-     "pad",
-     "焊盘",
-     "mil",
-     "焊盘表"
-    ],
-    "body": "焊盘表用 mil；焊盘号与手册一致（EP 单独给号）。EP 钢网分块用 lceda_footprint_paste 关 1:1 开窗。"
-   },
-   "silk": {
-    "title": "丝印与骨架装饰",
-    "tags": [
-     "silk",
-     "丝印",
-     "装饰",
-     "skeleton",
-     "丝印与骨架装饰",
-     "丝印层",
-     "垃圾",
-     "清理"
-    ],
-    "body": "create 的骨架自带装饰（文档层/装配层/远离本体的丝印），必须先清掉（看 skeletonDecorRemoved 计数）再画本体丝印。"
-   },
-   "verify": {
-    "title": "落库验收",
-    "tags": [
-     "verify",
-     "回读",
-     "inspect",
-     "落库验收"
-    ],
-    "body": "验收：lceda_footprint_inspect 看 PAD/POLY 计数与实时焊盘数；必要时 lceda_footprint_export_source 读源比对。"
-   }
-  },
-  "lceda-tools.lceda_footprint_from_qfn_spec": {
-   "overview": {
-    "title": "总览",
-    "tags": [
-     "qfn",
-     "vqfn",
-     "参数化",
-     "总览"
-    ],
-    "body": "按 pinCount/bodyMm/pitchMm 生成 QFN/VQFN 焊盘表并建封装（入参 mm、落库 mil）。"
-   },
-   "ring": {
-    "title": "环半径坑",
-    "tags": [
-     "ring",
-     "重叠",
-     "间距",
-     "环半径坑"
-    ],
-    "body": "ringMm 太小时相邻两边最外侧的脚会互相压住（48 脚 7mm/0.5 pitch 实测 0.07×0.07 mm ×4 对）。工具会自动撑到不重叠最小值，看返回 ringAdjusted/ringUsedMil。"
+    "body": "(async()=>{…})() 一律被拦下，静默返回 null 且吞异常 ⇒ 写成同步语句块。eda.lib_Device.getByLcscIds 会成对错配：请求 C2041465+C77239 回两条同名 MOSFET 且无 supplierId ⇒ 解析件一律 search(name) 后按 supplierId 精确比对。超时后先回读现状再决定重发，别盲目重跑。"
    }
   },
   "lceda-tools.lceda_screenshot": {
@@ -378,9 +286,11 @@
      "pcb",
      "封装",
      "原理图",
+     "3d",
+     "cdp",
      "通路差异"
     ],
-    "body": "PCB(3)/封装(4) 走画布；原理图(1) 走 sch_Manager 通路。只要当前 PCB 一张图用 jlceda.pcb_screenshot 更轻。"
+    "body": "PCB(3)/封装(4) 走画布；原理图(1) 走 sch_Manager 通路。只要当前 PCB 一张图用 jlceda.pcb_screenshot 更轻。 3D 预览页（doctype 15）没有 API blob（实测 skipped reason=no-blob）⇒ 自动改走 CDP 实拍（整窗实拍，不裁切：3D 画布被浏览器合成，页内无可靠 clientRect），pages[].via=cdp-screenshot；需先 lceda_doc op:preview3d 切出视图、GUI 开着且 9222 可通。"
    }
   },
   "lceda-tools.lceda_zoom": {
@@ -420,7 +330,7 @@
      "总表",
      "总览"
     ],
-    "body": "只读朝向总表：器件 rot/mirror、每脚坐标+名+电气类型+朝向(dir)、端口/电源标志、导线走向、网名对齐；可按 designators/ids/nets 过滤。"
+    "body": "只读朝向总表：器件 rot/mirror、每脚坐标+名+电气类型+朝向(dir)、端口/电源标志、导线走向、网名对齐。"
    },
    "howto": {
     "title": "怎么用",
@@ -478,7 +388,7 @@
      "缺陷",
      "回归"
     ],
-    "body": "ok=true 当且仅当缺陷计数为 0；未连引脚只报不判错（PG/FB2 天然悬空）。可传 expect 断言网表规模。交付前必跑，可与只读工具合批。"
+    "body": "ok=true 当且仅当缺陷计数为 0；未连引脚只报不判错（PG/FB2 天然悬空）。可传 expect 断言网表规模。交付前必跑，可与只读工具合批。 实测批量删/重建导线后真值 15 网/67 脚被读成 13 网/41 脚（假报警），所以验收前必须先关页重开。"
    }
   },
   "lceda-tools.lceda_netcheck": {
@@ -490,7 +400,7 @@
      "基线",
      "总览"
     ],
-    "body": "网表基线：snapshot 存 Protel2 基线；check/diff 比新增/消失/改动的网与单脚网；list 列基线；prune 只留最近 keep 个（默认 20）。"
+    "body": "网表基线：snapshot 存 Protel2 基线；list 列基线。"
    },
    "judge": {
     "title": "判据",
@@ -563,7 +473,7 @@
      "删不掉",
      "删了又活"
     ],
-    "body": "2026-11-06 实测：内建墓碑配方不足——delete 报 ok 后 save(verify:true) 仍 srcMismatch(TEXT src=6 page=7)、list 同 id 复活。可靠顺序：①lceda_text delete（内存）②lceda_document_source{action:\"drop\",dropIds:[id]}（源级删行）③save(verify:false) ④重开页回读。别跟 save(verify:true)。"
+    "body": "实测：内建墓碑配方不足——delete 报 ok 后 save(verify:true) 仍 srcMismatch(TEXT src=6 page=7)、list 同 id 复活。可靠顺序：①lceda_text delete（内存）②lceda_document_source{action:\"drop\",dropIds:[id]}（源级删行）③save(verify:false) ④重开页回读。别跟 save(verify:true)。"
    },
    "reload": {
     "title": "reload 坑",
@@ -651,14 +561,14 @@
     "body": "auto=文字+图像（默认）；text_only=只文字（**丢词间空格**，实测 TheLM5125A-Q1isastackable）；image_only=只要页面像素。"
    },
    "layout": {
-    "title": "版式/参数名回落",
+    "title": "版式与参数名校核",
     "tags": [
-     "pdftotext",
      "layout",
      "双栏",
-     "参数"
+     "参数",
+     "粘词"
     ],
-    "body": "精确版式、参数名、双栏表格一律回落 `pdftotext -layout`；曲线数字要裁剪放大再看（整页低清会读错）。",
+    "body": "取数一律走本工具，整本用 pages 区间加 rem/next 游标。text_only 丢词间空格 ⇒ 参数名/列归属有疑时只对那一页核列对齐，不做整本导出。曲线数字必须裁剪放大后确认——整页低清会读错。",
     "intentOnly": true
    },
    "images": {
@@ -1049,6 +959,1200 @@
      "power"
     ],
     "body": "type 取值 input/output/bidirectional/tri_state/passive/free/power_*/open_*；错设会让 ERC 误判。"
+   }
+  },
+  "lceda-tools.lceda_fp_meta": {
+   "overview": {
+    "title": "总览：四条 op",
+    "tags": [
+     "meta",
+     "封装",
+     "list",
+     "overview",
+     "总览：四条 op"
+    ],
+    "body": "op 判别：list / get / source / delete。读类按工程库→个人库依次试，命中即回并回报 libraryUuid。验收只认 get 的 padsLive/polyLive：库侧源是 append-only 事件流，sourceEventCounts 含已删图元的历史事件（实测本机 SOIC-8：源里 POLY 事件 15、重开后实时 6 条）。建封装用 lceda_footprint_create，改丝印用 lceda_fp_silk。"
+   },
+   "op:list": {
+    "title": "list 列封装",
+    "tags": [
+     "list",
+     "搜索",
+     "keyword",
+     "list 列封装"
+    ],
+    "body": "参数 op=list, keyword?, limit?；keyword 空串=列全部，limit 默认 30。返回 [{uuid,name,description,libraryUuid}]。只查名字用这个，要图元数改用 get。"
+   },
+   "op:get": {
+    "title": "get 元数据+实时数",
+    "tags": [
+     "get",
+     "实时",
+     "图元数",
+     "padsLive",
+     "get 元数据+实时数"
+    ],
+    "body": "参数 op=get, uuid, live?。给元数据、sourceBytes、sourceEventCounts（历史事件，不可当验收）与 live=true 时的 padsLive / polyLive / polyByLayer（来自编辑器实时源）。会打开一次封装编辑器（约 1~2 s），tab 是本次新开就自动关；live=false 可省这步但只有日志计数。"
+   },
+   "op:source": {
+    "title": "source 取完整源",
+    "tags": [
+     "source",
+     "源",
+     "文档源",
+     "模板",
+     "source 取完整源"
+    ],
+    "body": "参数 op=source, uuid。在 get 基础上额外回完整文档源文本（JSON-lines，含 DOCHEAD/PAD/POLY/TEXT/ATTR），用于备份、当模板或自己解析图元。源较大（本机 SOIC-8 约 35 KB）。"
+   },
+   "op:delete": {
+    "title": "delete 删除并自证",
+    "tags": [
+     "delete",
+     "删",
+     "删除",
+     "清理",
+     "delete 删除并自证"
+    ],
+    "body": "参数 op=delete, uuid。先定位库再删，随后轮询 6x400 ms 用 get+search 双证据判 stillListed，返 {ok:!stillListed, del, delErr}。单看 get 或 search 都会给假结论：get 删完有时抛非标准对象，search 索引有滞后。不可撤销，删前先 get 确认 uuid。 单看 get 或 search 都会给假结论（get 删完有时抛非标准对象、search 索引滞后）⇒ 判据用 6×400 ms 双证据轮询。事件计数随历史涨：实测同一封装 POLY 事件 15→20→36，重开后实时只有 3→5→6。"
+   }
+  },
+  "lceda-tools.lceda_fp_silk": {
+   "overview": {
+    "title": "总览：丝印图元",
+    "tags": [
+     "silk",
+     "丝印",
+     "overview",
+     "总览：丝印图元"
+    ],
+    "body": "op 判别：read / setBody / clear / addLine。单位 mil（1mm=39.37）。写类固定走：打开编辑器 → setDocumentSource → save → 关文档 → 重开回读；persisted 以重开后实时图元数为判据，不是 setOk。setBody/clear 会整层删除，同层其它图元（如 pin1 圆点）也会被删，要保留先 read 记下来。"
+   },
+   "op:read": {
+    "title": "read 读线段",
+    "tags": [
+     "read",
+     "读",
+     "线段",
+     "points",
+     "bbox",
+     "read 读线段"
+    ],
+    "body": "参数 op=read, uuid, layerId?。返回 count（全部 POLY）、countOnLayer（该层）、polyByLayer、polylines[{id,layerId,width,points,bbox}]。layerId 默认 3=顶层丝印，4=底层丝印，48=元件外形层。看本层条数认 countOnLayer，别拿 count。 落库判据 = reopened 且 geomMatch（该层线段几何多重集一致）；只数条数会被 id 撞车骗过（内容没变也报 true）。updateDocumentSource 对已存在文档返 true 但源不更新 ⇒ 只能走编辑器源写。setDocumentSource 用早先存下的源回滚会返 false（旧 DOCHEAD 的 client/version 失效）⇒ 永远从当次实时源派生，不重放旧源。sourceBytes 随写入单调变大，不能跨调用对比。"
+   },
+   "op:setbody": {
+    "title": "setBody 画本体框",
+    "tags": [
+     "setbody",
+     "本体",
+     "矩形",
+     "halfx",
+     "halfy",
+     "setBody 画本体框"
+    ],
+    "body": "参数 op=setBody, halfX, halfY, width?, layerId?, gapForPads?。先删该层全部 POLY，再画矩形 4 段（halfX 与 halfY 可不同，支持非正方形本体；只给一个按正方形）。gapForPads 给间隙 mil 时按实时焊盘 X 跨度断开上下边，左右竖线不断。返回 removed/added/after/reopened。"
+   },
+   "op:clear": {
+    "title": "clear 清层",
+    "tags": [
+     "clear",
+     "清空",
+     "删除该层",
+     "clear 清层"
+    ],
+    "body": "参数 op=clear, layerId?。删掉该层全部 POLY，返回 removed 与 after.poly。不可撤销：pin1 圆点、装配标记若也在该层会一并消失，删前先 read。"
+   },
+   "op:addline": {
+    "title": "addLine 加线段",
+    "tags": [
+     "addline",
+     "加线",
+     "线段",
+     "addLine 加线段"
+    ],
+    "body": "参数 op=addLine, lines:[{x1,y1,x2,y2,width?}], layerId?, width?。在源末尾追加若干两点线段（不删原有图元）。只能画直线段，圆或弧要自己拆成折线。"
+   }
+  },
+  "lceda-tools.lceda_symbol": {
+   "overview": {
+    "title": "总览：四操作",
+    "tags": [
+     "symbol",
+     "符号",
+     "overview",
+     "总览：四操作"
+    ],
+    "body": "op 判别：create 建符号 / read 回读 / modify 改文字或框 / delete 删除。坐标 0.01 inch。源里 TEXT 与 RECT 的 y 与 API 反号：yApi = -y。建符号必须让编辑器处于可创建状态（库里有空的符号文档即可），否则 create 链会 500。"
+   },
+   "op:create": {
+    "title": "create 建符号",
+    "tags": [
+     "create",
+     "建符号",
+     "pins",
+     "texts",
+     "rect",
+     "create 建符号"
+    ],
+    "body": "参数 op=create, name, pins[{num,name,x,y,rot,type?}], rect{x,y,w,h}, texts[{x,y,value,fontSize?}], classification[], libraryUuid。一次调用完成 建文档→画引脚→画框→写字→逐脚设 Pin Type→保存→回读，返回 textsCreated / pinTypesSet / saved / sourceBytes。texts 与 rect 都可省。"
+   },
+   "op:read": {
+    "title": "read 回读",
+    "tags": [
+     "read",
+     "读",
+     "pinout",
+     "read 回读"
+    ],
+    "body": "参数 op=read, uuid。返回 counts(DOCHEAD/PART/PIN/RECT/TEXT/ATTR)、pins(带 number/name/type)、pinout(形如 1=OE(Input))、texts、rect、srcBytes。核对 pinout 用这个，不要再退回解析源文本。"
+   },
+   "op:modify": {
+    "title": "modify 改文字或框",
+    "tags": [
+     "modify",
+     "改text",
+     "rect",
+     "器件名",
+     "modify 改文字或框"
+    ],
+    "body": "参数 op=modify, uuid, texts?, rect?。texts 给了就整体替换全部 TEXT（不给则保留原有）；rect 给了就改写 RECT 行的 dotX1=x / dotY1=-y / dotX2=x+w / dotY2=-y+h（源口径 y 取反），其余字段原样保留。二者至少要给一个。回读判据 rectOk/textsOk + 重开后 PIN 数不变。"
+   },
+   "op:delete": {
+    "title": "delete 删除",
+    "tags": [
+     "delete",
+     "删",
+     "索引",
+     "delete 删除"
+    ],
+    "body": "参数 op=delete, uuid。存在性判据 = 整库索引 lib_Symbol.search(空串, lib, undefined, undefined, 50, page) 里出现该 uuid（逐页直到 <50 条）；不能靠 get / getDocumentSource / searchByProperties(uuid) / getRenderImage 判。删后 8×400ms 重扫索引自证，返回 before/after/notInIndex。"
+   },
+   "pitfalls": {
+    "title": "两个不稳定点：TEXT id 改写 / x 漂移",
+    "tags": [
+     "pitfalls",
+     "symbol",
+     "text",
+     "coordDrift"
+    ],
+    "body": "写进去的 TEXT id 会被引擎改写（sym-name-1 → lt-ct-1x）。x 偶发漂移：同 payload x:-24.5 一次存 -24.5、一次存 -22（偏 0.025 inch），y 稳定。返回里看 coordDrift 复核，别硬追 x。要保留的 TEXT 必须在 modify 时一次给全。"
+   }
+  },
+  "lceda-tools.lceda_fp_pads": {
+   "overview": {
+    "title": "总览：焊盘三操作",
+    "tags": [
+     "pads",
+     "焊盘",
+     "overview",
+     "总览：焊盘三操作"
+    ],
+    "body": "op 判别：read / set / setOne。单位 mil。写类走编辑器源+关重开回读，判据是**逐焊盘数值多重集一致**（padsMatch），不是 setOk。整表替换时以源内第一只 PAD 的 payload 为模板，保住 propagationDelay 等服务器私有字段。"
+   },
+   "op:read": {
+    "title": "read 读焊盘",
+    "tags": [
+     "read",
+     "读",
+     "焊盘表",
+     "read 读焊盘"
+    ],
+    "body": "参数 op=read, uuid。返回 8 类数值：num/x/y(centerX,centerY)/w/h(defaultPad.width,height)/mask(topSolderExpansion)/paste(topPasteExpansion)/rot，另给 padsLive 与 polyByLayer（用来确认没动丝印）。"
+   },
+   "op:set": {
+    "title": "set 整表替换",
+    "tags": [
+     "set",
+     "整表",
+     "替换",
+     "set 整表替换"
+    ],
+    "body": "参数 op=set, pads:[{num,x,y,w,h,r?,maskExp?,pasteExp?}]。整表重建 PAD 行；num 重复直接报错。落库后 padsLive 必须等于 len(pads)，否则报错。会返回 removed/added 与 before/after。"
+   },
+   "op:setone": {
+    "title": "setOne 改单只",
+    "tags": [
+     "setone",
+     "单只",
+     "patch",
+     "setOne 改单只"
+    ],
+    "body": "参数 op=setOne, num, patch:{x?,y?,w?,h?,maskExp?,pasteExp?,r?}。按 num 定位，找不到就报错并列出库里现有 num。改 mask/paste 也可用 lceda_fp_mask，按语义选。"
+   },
+   "pitfalls": {
+    "title": "整表替换要保住私有字段",
+    "tags": [
+     "pitfalls",
+     "pads",
+     "propagationDelay",
+     "template"
+    ],
+    "body": "服务器会重排焊盘 id/ticket（值不变），defaultPad.radius 会被存成浮点。PAD payload 里还有 propagationDelay 等私有字段 ⇒ 整表替换时以源内第一只 PAD 为模板，别凭空构造。"
+   }
+  },
+  "lceda-tools.lceda_fp_mask": {
+   "overview": {
+    "title": "总览：阻焊与钢网",
+    "tags": [
+     "mask",
+     "paste",
+     "阻焊",
+     "钢网",
+     "overview",
+     "总览：阻焊与钢网"
+    ],
+    "body": "op 判别：read / setMask / setPaste / pasteOff。层号真相：3=TOP_SILK、4=BOT_SILK、5/6=SOLDER_MASK、7/8=PASTE_MASK（**4 不是 paste**）。负值只能走 pasteOff 的 API 通路，源级写 -3937 会被规范化成 0。"
+   },
+   "op:read": {
+    "title": "read 读扩展值",
+    "tags": [
+     "read",
+     "读",
+     "扩展",
+     "read 读扩展值"
+    ],
+    "body": "参数 op=read, uuid, layerId?（默认 7）。返回每只焊盘 mask/paste（含 bottom）、layerPolys 统计。用来确认 1:1 开窗还是已关。 层号别写错：layer 4 是 BOT_SILK，paste 在 7/8。pasteOff 必须走 pcb_PrimitivePad.modify，源级写负值重开后读回 0。"
+   },
+   "op:setmask": {
+    "title": "setMask / setPaste",
+    "tags": [
+     "setmask",
+     "setpaste",
+     "扩展值",
+     "setMask / setPaste"
+    ],
+    "body": "参数 op=setMask|setPaste, nums?（默认 [*] 全部）, value（mil，必须 >=0）。只改对应字段，其他字段原样；落库判据 valuesMatch（逐脚数值一致）。"
+   },
+   "op:pasteoff": {
+    "title": "pasteOff 关钢网",
+    "tags": [
+     "pasteoff",
+     "-3937",
+     "关钢网",
+     "pasteOff 关钢网"
+    ],
+    "body": "参数 op=pasteOff, nums?。走 eda.pcb_PrimitivePad.modify 设 topPasteMask=-3937（哨兵=不开窗）。**副作用**：API 只有单一 pasteExpansion ⇒ bottomPaste 一起变 -3937，返回里 bottomPasteAlsoSet 标注；maskDrift 应为空。"
+   }
+  },
+  "lceda-tools.lceda_pour": {
+   "overview": {
+    "title": "总览：铺铜状态与填充",
+    "tags": [
+     "overview",
+     "pour",
+     "铺铜",
+     "action",
+     "总览：铺铜状态与填充"
+    ],
+    "body": "action 判别：read=列状态（默认）/ compute=算填充几何不落库 / fill=GUI Shift+B 重建并回读。铺铜是 PrimitivePour（未填充多边形），填充后出现 PrimitivePoured；重建后 poured 仍为 0 说明 GUI 没真执行。"
+   },
+   "action:read": {
+    "title": "read 列状态",
+    "tags": [
+     "read",
+     "铺铜",
+     "列表",
+     "primitiveid",
+     "action:read 列状态"
+    ],
+    "body": "参数 action=read, ids?, layer?, expectProject?。只读枚举当前文档的铺铜与已填充区域，回计数、按层分布、每条 primitiveId 与顶点数，不发写指令。判据：poured>0 才算填充落库。"
+   },
+   "action:compute": {
+    "title": "compute 算几何",
+    "tags": [
+     "compute",
+     "填充几何",
+     "rebuildcopperregion",
+     "action:compute 算几何"
+    ],
+    "body": "参数 action=compute, ids?, layer?。调 EDA 的 rebuildCopperRegion 只算填充几何、不落库（实测落库后 poured 仍为 0）。用来核对填充范围与顶点数，别拿它当\"已填充\"。"
+   },
+   "action:fill": {
+    "title": "fill 重建落库",
+    "tags": [
+     "fill",
+     "shift+b",
+     "重建铺铜",
+     "waitms",
+     "action:fill 重建"
+    ],
+    "body": "参数 action=fill, ids?, layer?, waitMs?（默认 8000）。CDP 发 Shift+B 重建铺铜并轮询回读，回重建前后差。判据只看回读后的 poured 数，不看 ok；waitMs 到期没变=GUI 没接住，加时长重试或手工重建。"
+   },
+   "pitfalls": {
+    "title": "坑",
+    "tags": [
+     "pitfalls"
+    ],
+    "body": "① compute 不落库，不能当交付证据；② fill 依赖编辑器在前台且已打开目标文档，窗口被挡/最小化会轮询到超时；③ 铺铜多边形本身用 lceda_batch 的 graphic op 画，pour 只管填充与状态；④ expectProject 写错名字直接拒绝执行（防写错工程）。"
+   }
+  },
+  "lceda-tools.lceda_model3d": {
+   "overview": {
+    "title": "总览：3D 模型条目",
+    "tags": [
+     "overview",
+     "3d",
+     "模型",
+     "op",
+     "总览：3D 模型条目"
+    ],
+    "body": "op 判别：import / list / get / delete。只管 3D 模型条目本身，不负责挂到器件上——关联要另调 lceda_device（model3DUuid），两步都做完器件才带 3D。"
+   },
+   "op:import": {
+    "title": "import 导入",
+    "tags": [
+     "import",
+     "step",
+     "filepath",
+     "name",
+     "op:import 导入 STEP"
+    ],
+    "body": "参数 op=import, filePath（本地绝对路径，STEP 已验；WRL 未验）, name?（不给取文件名）, libraryUuid?（缺省个人库）, unit?（默认 mm）。回模型条目 uuid，下一步交给 lceda_device。同名再导生成新条目，不覆盖。"
+   },
+   "op:list": {
+    "title": "list 列表",
+    "tags": [
+     "list",
+     "keyword",
+     "libraryuuid",
+     "op:list 列模型"
+    ],
+    "body": "参数 op=list, keyword?（空=全部）, libraryUuid?。列当前库里的 3D 模型条目（uuid/name），用来取 uuid 或核对是否已导入。"
+   },
+   "op:get": {
+    "title": "get 读条目",
+    "tags": [
+     "get",
+     "uuid",
+     "op:get 读条目"
+    ],
+    "body": "参数 op=get, uuid。回单条模型的元信息（名称/库/文件引用），不含几何；要核几何就回编辑器看或重导 STEP 比对。"
+   },
+   "op:delete": {
+    "title": "delete 删条目",
+    "tags": [
+     "delete",
+     "uuid",
+     "op:delete 删条目",
+     "不可撤销"
+    ],
+    "body": "参数 op=delete, uuid。删库里的 3D 模型条目，不可撤销。删前用 lceda_device(read) 确认没器件引用，删掉被引用的条目会让器件 3D 悬空。"
+   },
+   "pitfalls": {
+    "title": "坑",
+    "tags": [
+     "pitfalls"
+    ],
+    "body": "① 导入≠关联，只 import 器件侧仍无 3D；② 3D 关联落在 property.otherProperty[\"3D Model\"]，association.model3D 可能空，读关联两处都看；③ 同名重导会在库里堆重复模型；④ 删条目不会级联清器件引用。"
+   }
+  },
+  "lceda-tools.lceda_device": {
+   "overview": {
+    "title": "总览：器件单一入口",
+    "tags": [
+     "overview",
+     "device",
+     "器件",
+     "op",
+     "总览：器件单一入口"
+    ],
+    "body": "op 判别：create（建器件并关联符号/封装/3D，可带分类与位号）/ read（只读回三件套+分类+位号）/ modify（改关联、分类、位号、描述）。三件套要先各自建好，device 只做关联。"
+   },
+   "op:create": {
+    "title": "create 建器件",
+    "tags": [
+     "create",
+     "name",
+     "symboluuid",
+     "footprintuuid",
+     "classification",
+     "designator"
+    ],
+    "body": "参数 op=create, name, symbolUuid, footprintUuid, model3DUuid?, classification?（如 [\"放大器\",\"运算放大器\"]）, designator?（如 \"U?\"）, libraryUuid?。一次建器件并把三件套写进 association；分类是数组，按层级从大类到小类。"
+   },
+   "op:read": {
+    "title": "read 回读",
+    "tags": [
+     "read",
+     "uuid",
+     "association",
+     "model3duuid",
+     "op:read 回读器件"
+    ],
+    "body": "参数 op=read, uuid。回器件名、association(symbolUuid/footprintUuid)、分类、位号、3D。判据：3D 常落在 property.otherProperty[\"3D Model\"] 而非 association.model3D，两处都看，别只看一处就判\"没关联\"。"
+   },
+   "op:modify": {
+    "title": "modify 改关联",
+    "tags": [
+     "modify",
+     "model3duuid",
+     "classification",
+     "designator",
+     "op:modify 改关联"
+    ],
+    "body": "参数 op=modify, uuid, 以及要改的 symbolUuid?/footprintUuid?/model3DUuid?/classification?/designator?/description?/name?。只改传进来的字段，其余保持；只换 3D 就传 model3DUuid。改完回读校验。"
+   },
+   "pitfalls": {
+    "title": "坑",
+    "tags": [
+     "pitfalls"
+    ],
+    "body": "① device 不建符号/封装/3D，缺件先补；② \"U?\" 这类悬空位号是合法值，别写具体编号；③ 3D 关联读 association.model3D 可能为 null（见 read 章）；④ 工程库写源会失败，落库走个人库。"
+   },
+   "op:delete": {
+    "title": "delete 删器件",
+    "tags": [
+     "delete",
+     "删除",
+     "删除器件",
+     "delete 删器件"
+    ],
+    "body": "参数 op=delete, uuid 或 uuids[], confirm?(批量>1 必须 true), dryRun?(true=只列将删清单), libraryUuid?。逐条先 get 拿名字，再 lib_Device.delete，最后再 get 复验：仍能取到即记 failed（判未真删）。返回 deleted/failed/remaining(分页统计的剩余条数)。"
+   }
+  },
+  "dshlink.key": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "总览",
+     "键",
+     "按键"
+    ],
+    "body": "全局动作键：不依赖界面控件，直接让系统执行 back/home 等。页面内某个按钮用 dshlink.click。"
+   },
+   "actionBack": {
+    "title": "返回 back",
+    "tags": [
+     "back",
+     "返回"
+    ],
+    "body": "action:back = 系统返回键。连按可能在桌面退出 app，先确认页面层级再按。"
+   },
+   "actionHome": {
+    "title": "桌面 home",
+    "tags": [
+     "home",
+     "桌面",
+     "主页"
+    ],
+    "body": "action:home 回桌面（不杀 app，回来还在原页）。"
+   },
+   "actionRecents": {
+    "title": "任务 recents",
+    "tags": [
+     "recents",
+     "任务",
+     "多任务"
+    ],
+    "body": "action:recents 打开多任务列表；要找某个 app 直接切用 dshlink.app。"
+   },
+   "actionNotifications": {
+    "title": "通知栏 notifications",
+    "tags": [
+     "notifications",
+     "通知",
+     "下拉"
+    ],
+    "body": "action:notifications 下拉通知栏；下拉后点控件仍用 dshlink.click。"
+   },
+   "actionQuicksettings": {
+    "title": "快捷设置 quicksettings",
+    "tags": [
+     "quicksettings",
+     "快捷",
+     "开关"
+    ],
+    "body": "action:quicksettings 展开快捷开关面板（常需再滑一次）。"
+   },
+   "actionLock": {
+    "title": "锁屏 lock",
+    "tags": [
+     "lock",
+     "锁屏"
+    ],
+    "body": "action:lock 熄屏锁屏；唤醒要人工或 dshlink.call。"
+   }
+  },
+  "dshlink.app": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "总览",
+     "app",
+     "应用"
+    ],
+    "body": "按 action 管 app：info 查包信息 / start 启动 / stop 强停 / restart 重启。需要 pkg（如 com.tencent.mm）。"
+   },
+   "actionInfo": {
+    "title": "查信息 info",
+    "tags": [
+     "info",
+     "查",
+     "信息"
+    ],
+    "body": "action:info + pkg 返回包名/版本/是否前台；要设备信息用 dshlink.info。"
+   },
+   "actionStart": {
+    "title": "启动 start",
+    "tags": [
+     "start",
+     "启动",
+     "打开"
+    ],
+    "body": "action:start + pkg 拉起 app；界面没起来先看 dshlink.status 里的通道与无障碍。"
+   },
+   "actionStop": {
+    "title": "强停 stop",
+    "tags": [
+     "stop",
+     "停",
+     "关闭"
+    ],
+    "body": "action:stop 强停 app（等于 am force-stop），未保存内容会丢。"
+   },
+   "actionRestart": {
+    "title": "重启 restart",
+    "tags": [
+     "restart",
+     "重启"
+    ],
+    "body": "action:restart = stop + start，改完设置后用它让 app 重新加载。"
+   }
+  },
+  "github.issue_read": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "总览",
+     "issue",
+     "读"
+    ],
+    "body": "按 method 读单个 issue：get 正文 / get_comments 评论 / get_sub_issues 子任务 / get_parent 父任务 / get_labels 标签。"
+   },
+   "methodGet": {
+    "title": "正文 get",
+    "tags": [
+     "get",
+     "正文",
+     "详情"
+    ],
+    "body": "method:get 返回标题、正文、状态、标签、指派人；PR 同样适用。"
+   },
+   "methodComments": {
+    "title": "评论 get_comments",
+    "tags": [
+     "get_comments",
+     "评论"
+    ],
+    "body": "method:get_comments 按 page/perPage 分页取评论；要全部必须翻到空页。"
+   },
+   "methodSubIssues": {
+    "title": "子任务 get_sub_issues",
+    "tags": [
+     "get_sub_issues",
+     "子任务",
+     "子issue"
+    ],
+    "body": "method:get_sub_issues 取子 issue 列表（新版 sub-issues 特性）。"
+   },
+   "methodParent": {
+    "title": "父任务 get_parent",
+    "tags": [
+     "get_parent",
+     "父任务"
+    ],
+    "body": "method:get_parent 取父 issue（仅子 issue 有）。"
+   },
+   "methodLabels": {
+    "title": "标签 get_labels",
+    "tags": [
+     "get_labels",
+     "标签"
+    ],
+    "body": "method:get_labels 取该 issue 可用标签；仓库级标签列表在 ui_get 的 labels。"
+   }
+  },
+  "github.ui_get": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "总览",
+     "ui",
+     "下拉数据"
+    ],
+    "body": "按 method 取 UI 下拉数据：labels / assignees / milestones / issue_types / branches / issue_fields / reviewers。"
+   },
+   "methodLabels": {
+    "title": "标签 labels",
+    "tags": [
+     "labels",
+     "标签"
+    ],
+    "body": "method:labels 取仓库标签列表，用于填 issue/PR 的 labels。"
+   },
+   "methodAssignees": {
+    "title": "指派人 assignees",
+    "tags": [
+     "assignees",
+     "指派"
+    ],
+    "body": "method:assignees 取可指派用户列表。"
+   },
+   "methodMilestones": {
+    "title": "里程碑 milestones",
+    "tags": [
+     "milestones",
+     "里程碑"
+    ],
+    "body": "method:milestones 取里程碑列表（建 PR/issue 时填）。"
+   },
+   "methodIssueTypes": {
+    "title": "类型 issue_types",
+    "tags": [
+     "issue_types",
+     "类型"
+    ],
+    "body": "method:issue_types 取仓库启用的 issue 类型。"
+   },
+   "methodBranches": {
+    "title": "分支 branches",
+    "tags": [
+     "branches",
+     "分支"
+    ],
+    "body": "method:branches 取分支列表，建 PR 时选 base/head 用。"
+   },
+   "methodIssueFields": {
+    "title": "字段 issue_fields",
+    "tags": [
+     "issue_fields",
+     "字段"
+    ],
+    "body": "method:issue_fields 取 issue 表单字段定义。"
+   },
+   "methodReviewers": {
+    "title": "评审人 reviewers",
+    "tags": [
+     "reviewers",
+     "评审"
+    ],
+    "body": "method:reviewers 取可加的评审人，填 update_pull_request 的 reviewers。"
+   }
+  },
+  "jlceda-native.pcb_realtime_drc": {
+   "overview": {
+    "title": "总览",
+    "tags": [
+     "总览",
+     "drc",
+     "实时"
+    ],
+    "body": "EDA v4.2 的 PCB 实时 DRC：查状态或显式开/关。"
+   },
+   "actionStatus": {
+    "title": "查状态 status",
+    "tags": [
+     "status",
+     "查",
+     "状态"
+    ],
+    "body": "action:status 返回实时 DRC 当前开关与最近一次结果摘要。"
+   },
+   "actionStart": {
+    "title": "开启 start",
+    "tags": [
+     "start",
+     "开启",
+     "打开"
+    ],
+    "body": "action:start 打开实时 DRC；打开后画板会持续报违规，重板子先关掉再画。"
+   },
+   "actionStop": {
+    "title": "关闭 stop",
+    "tags": [
+     "stop",
+     "关闭"
+    ],
+    "body": "action:stop 关闭实时 DRC，用于批量布线时避免频繁告警。"
+   }
+  },
+  "lceda-tools.lceda_doc": {
+   "overview": {
+    "title": "总览：页面开关",
+    "tags": [
+     "overview",
+     "总览：页面开关",
+     "tab",
+     "页面",
+     "文档"
+    ],
+    "body": "op 判别：list 列已开页（含 kind/isActive/uuid）；open 开库文档并激活+缩放；activate 切页；close 关一页（可 restore 回原页）；closeAll 关所有非起始页（必须 confirm:true）。所有 fp_*/symbol 工具都是『开→读→关』内部完成，本工具是唯一能把页面留在界面上的入口；preview3d 另把封装/PCB 页切成 3D 预览视图。"
+   },
+   "op:open": {
+    "title": "open 打开库文档",
+    "tags": [
+     "open",
+     "打开",
+     "开页",
+     "open 打开库文档"
+    ],
+    "body": "参数 op=open, kind=footprint|symbol|3dmodel, uuid, libraryUuid?（缺省个人库）, zoom?（默认 true）。返回 tabId/title/doctype/tabs。实测开销约 2~3 s（openInEditor + 1500 ms 等渲染 + zoom）。kind=device 会明确报错：lib_Device 没有编辑页。"
+   },
+   "op:close": {
+    "title": "close / closeAll 关页",
+    "tags": [
+     "close",
+     "closeall",
+     "关闭",
+     "关页",
+     "close / closeAll 关页"
+    ],
+    "body": "op=close：给 tabId 或 uuid，可选 restore=要切回的 tabId（关完活动页会跳走，别忘）。op=closeAll：必须 confirm:true，可用 doctype 限定（1 原理图 2 符号 3 PCB 4 封装）。关不掉的页看 closeErr，多半是编辑器有未保存提示。"
+   },
+   "op:list": {
+    "title": "list 列已开页",
+    "tags": [
+     "list",
+     "列页",
+     "已开",
+     "list 列已开页"
+    ],
+    "body": "op=list 返回 tabs[{tabId,title,doctype,kind,isActive,uuid}] 与 active。检查『页开没开』『活动页是谁』只看这个，别用 lceda_status.tabs（那个是粗口径）。"
+   },
+   "op:preview3d": {
+    "title": "op:preview3d 切到 3D 预览",
+    "tags": [
+     "preview3d",
+     "3d预览",
+     "3D 预览",
+     "三维预览",
+     "3d"
+    ],
+    "body": "参数 op=preview3d, uuid?（缺省=当前活动封装页）, libraryUuid?, waitMs?（默认 15000）。流程：开/激活封装页 → CDP 点「视图→3D预览」→ 轮询 doctype 15 的 tab → 返回 tabId。首次出图 3~6 s（WebGL 编译）。取图 lceda_screenshot{target:tabId}；关页 op:close。 点完菜单没出页，多半是当前页不是封装/PCB；关 3D 视图用 op:close 的 2d-… tabId。3D 预览只有浏览器渲染通路：GUI 开着且 127.0.0.1:9222 可通。open 需 kind+uuid、activate 需 tabId（schema allOf 声明，缺了预检拦）。"
+   }
+  },
+  "lceda-tools.lceda_layer": {
+   "overview": {
+    "title": "总览：图层显隐",
+    "tags": [
+     "overview",
+     "总览：图层显隐",
+     "图层",
+     "layer"
+    ],
+    "body": "op 判别：list 列全部层（layerId/name/visible/use）；show/hide/only 改可见性；restore 还原上一次改动。层号速查：1 顶层 · 3 顶层丝印 · 5 顶层阻焊 · 7 顶层钢网 · 48 元件外形 · 13 文档层。只在封装/PCB 文档里有效。"
+   },
+   "op:only": {
+    "title": "only 只留指定层",
+    "tags": [
+     "only",
+     "只留",
+     "只看",
+     "only 只留指定层"
+    ],
+    "body": "参数 op=only, layers=[层号或层名]（如 [7,3] 或 [\"顶层钢网\",\"顶层丝印\"]）。会先把其余可见层关掉再打开目标层，并在进程内保存快照供 restore。层名解析：精确层名 → 内置别名（top/topsilk/toppaste/outline…）→ 失败直接抛错。"
+   },
+   "op:restore": {
+    "title": "restore 还原",
+    "tags": [
+     "restore",
+     "还原",
+     "恢复",
+     "restore 还原"
+    ],
+    "body": "op=restore 按快照逐层 setLayerVisible/Invisible 回原状，然后清空快照。快照是进程内单份（后一次 show/hide/only 覆盖前一次），lceda-tools 重启后丢失 ⇒ 想还原就别重启。返回 restored[{layerId,visible,r}] 逐层回执。"
+   }
+  },
+  "lceda-tools.lceda_lib": {
+   "overview": {
+    "title": "总览：库检索",
+    "tags": [
+     "overview",
+     "总览：库检索",
+     "库",
+     "检索",
+     "library"
+    ],
+    "body": "op 判别：search 按关键词搜（缺省 personal+system+project 三库全查，结果按库分组并给 total）；get 按 uuid 读单条完整记录；classification 读分类树。kind=device/symbol/footprint/3dmodel。全部只读，可与其它只读工具合批。"
+   },
+   "op:search": {
+    "title": "search 关键词检索",
+    "tags": [
+     "search",
+     "搜索",
+     "找件",
+     "检索",
+     "search 关键词检索"
+    ],
+    "body": "参数 op=search, kind?, keyword?, library?(personal|system|project|all|<uuid>，默认 all), limit?(默认 20)。返回 libraries{personal|system|project:{libraryUuid,total,hits[{uuid,name,description,classification}]}} 与 counts。S0 库侦察就靠它，别再手搓 eda.lib_Device.search。 device/symbol 签名是 (t,i,n,r,limit,page)，footprint/3d 是 (t,i,n,limit,page) ⇒ 自己写 lceda_execute 时照抄，别把 limit 放错位。limit 是 API 侧上限；删条目用 lceda_fp_meta / lceda_symbol / lceda_device / lceda_model3d 各自的 delete。"
+   },
+   "op:get": {
+    "title": "get 按 uuid 读记录",
+    "tags": [
+     "get",
+     "详情",
+     "uuid",
+     "完整记录",
+     "get 按 uuid 读记录"
+    ],
+    "body": "参数 op=get, uuid, kind?, library?(默认 all 逐库试)。返回该条目的完整记录（device 含 property/association/classification）。每库 6 s 保护超时：kind 与 uuid 不匹配时 EDA 侧会挂住，此时回 {ok:false, errors:[{lib,err}]} 而不是等 28 s。序列化超 12 KB 只回 recordKeys+bytes 并标 truncated=true；三库都取不到回 notFound:true。"
+   },
+   "op:classification": {
+    "title": "classification 分类树",
+    "tags": [
+     "classification",
+     "分类",
+     "树",
+     "classification 分类树"
+    ],
+    "body": "参数 op=classification, library?(默认 all)。逐库返回 lib_Classification.getClassificationTree 的结果。个人库没有分类树时返回 []（正常，不是失败）。"
+   },
+   "op:list": {
+    "title": "list 清点全量",
+    "tags": [
+     "list",
+     "清点",
+     "全量",
+     "清单",
+     "list 清点全量"
+    ],
+    "body": "参数 op=list, kind?, library?(默认 all)。一次 limit=100 拉全量（实测各库 page>=2 恒 0，没有真分页），返回 total/capped/items[{uuid,name,description}] 与 counts。清点个人库就靠它：各库数量以返回的 counts 为准。"
+   }
+  },
+  "skills.skills_index": {
+   "overview": {
+    "title": "总览与层",
+    "tags": [
+     "overview",
+     "总览",
+     "index",
+     "目录"
+    ],
+    "body": "取章前先看目录：只回 id/标题/cp。layer=skill（默认）看 SKILL.md，layer=ref 需同时给 ref（playbook / notes / evidence）。已知章节名时不要多跑这一趟，直接 skills_section。"
+   },
+   "layer": {
+    "title": "两层：skill 与 ref",
+    "tags": [
+     "layer",
+     "ref",
+     "references",
+     "层"
+    ],
+    "body": "skill 层 = 判据层（SKILL.md），一般 5–18 章；ref 层 = 细则/注意事项/证据层（references/*.md），单文件最多 95 章。两层 id 都来自「## N. 标题」的编号，无编号时用标题 slug。"
+   }
+  },
+  "skills.skills_section": {
+   "overview": {
+    "title": "总览：按指针取章",
+    "tags": [
+     "overview",
+     "总览",
+     "取章",
+     "section"
+    ],
+    "body": "spec 支持 4 / 3.2 / S4-封装落库 / 判据 3 / 2–8（范围）；一次可传数组多章；默认 budget 8000 字符。这是「照指针取章」，不是「按任务猜章」——后者实测只有 67% 命中。"
+   },
+   "spec": {
+    "title": "spec 写法与容错",
+    "tags": [
+     "spec",
+     "容错",
+     "范围",
+     "range",
+     "名字"
+    ],
+    "body": "解析顺序：精确 id → 标题逐字 → 标题包含（只有唯一命中才算）。§ 前缀可省。带括号的长名（§8（8.1–8.3 鸥翼全参数模板…））会降级到编号 8。命中多章或只能靠词重叠时直接报错并列出候选 id —— 宁可不猜，也不回错章。"
+   },
+   "budget": {
+    "title": "预算与截断",
+    "tags": [
+     "budget",
+     "预算",
+     "截断",
+     "truncated"
+    ],
+    "body": "超预算的章不会被静默丢掉：结果带 truncated:true 与 skipped:[{id,cp}]，并用 hint 说明调大 budget 或分次取。实测最大单章 11,604 cp，需要时传 budget:20000。"
+   },
+   "items": {
+    "title": "一次取多章 / 跨技能（items）",
+    "tags": [
+     "items",
+     "多章",
+     "跨技能",
+     "批量",
+     "去重"
+    ],
+    "body": "一条调用取多章：items:[{spec:\"判据 3\"},{ref:\"notes\",spec:\"1\"}]；跨技能就再给 skill:{...}。返回里的 resolvedBy 列出每一章实际命中的 skill/ref/id/matchedBy，便于核对。"
+   },
+   "dedupe": {
+    "title": "会话内去重与 force",
+    "tags": [
+     "去重",
+     "dedupe",
+     "repeated",
+     "force"
+    ],
+    "body": "同一会话已取过的章节不再回正文：进 repeated（含 id/标题/cp/前 120 字），正文不重复进上下文；确有需要传 force:true 重取。会话 id 由聚合器注入（skills.* 才注入），无 id 的客户端不去重。"
+   }
+  },
+  "skills.skills_body": {
+   "overview": {
+    "title": "总览：整篇兜底",
+    "tags": [
+     "overview",
+     "总览",
+     "整篇",
+     "body"
+    ],
+    "body": "取 SKILL.md 或某个 references 文件全文，等价于 read 整篇。用于「确实要通读」的场合；日常细则取章用 skills_section。"
+   },
+   "when": {
+    "title": "什么时候才用整篇",
+    "tags": [
+     "when",
+     "场景",
+     "整篇"
+    ],
+    "body": "① 该层只有 1–2 节（如单主题参考表 kicad-pcb/trace-width-table.md）；② 技能正文明确要求通读；③ 按章取后仍缺上下文。其余情况按章取，实测省 86% 字节。"
+   }
+  },
+  "lceda-tools.lceda_fp_build": {
+   "overview": {
+    "title": "overview",
+    "tags": [
+     "overview",
+     "总览",
+     "建封装"
+    ],
+    "body": "四类输入：焊盘表 / QFN 参数 / 模板克隆 / 从模板派生，一次画出矩形丝印与 48 层本体外形，落库后必须重开回读。丝印与本体半宽语义见 silk 章，回读判据与处置见 verify 章。"
+   },
+   "silk": {
+    "title": "silk",
+    "tags": [
+     "silk",
+     "丝印",
+     "silkHalfX",
+     "silkHalfY",
+     "bodyHalfX",
+     "bodyHalfY",
+     "silkMode"
+    ],
+    "body": "丝印用 silkHalfX/silkHalfY（两值可不同 ⇒ 矩形）；本体外形走 bodyHalfX/bodyHalfY，与丝印独立（实测 120×180 vs 150×210）。silkMode=\"auto\" 会整个忽略 silkHalfY：SOIC-8 被建成方框，layer3 横线落在 Y=±80.7087 而期望 ±100.3937，差 0.5 mm ⇒ 要矩形就显式给两个半宽，别用 auto。"
+   },
+   "verify": {
+    "title": "verify",
+    "tags": [
+     "verify",
+     "verifyMode",
+     "padsMatch",
+     "setOk",
+     "回读",
+     "layer3"
+    ],
+    "body": "verifyMode 默认 source（工具 schema description 仍写 editor，以源码默认 source 为准），是为绕开 editor 校验遇 EDA 抛 null 的假失败（已归一成可读错误）。落库判据 = 重开后图元数 + 内容级 padsMatch，setOk 不算数。丝印画错时用 fp_silk clear→addLine 自算断边，最后回读源文本 layer3 坐标核对，别只看返回 ok。"
+   }
+  },
+  "lceda-tools.lceda_probe": {
+   "pitfalls": {
+    "title": "先 methods 再写代码",
+    "tags": [
+     "pitfalls",
+     "methods",
+     "signature",
+     "openInEditor"
+    ],
+    "body": "signature 只能查已知名字，回答不了「有哪些」——要方法清单必须 methods（沿原型链，含 arity）。实测 4.1.78 的 lib_Device 只有 create/delete/modify/get/copy/search，没有 openInEditor。schema 用 allOf 声明 op 必填，缺了预检直接拦，别猜 methodName 这类参数名。"
+   },
+   "overview": {
+    "title": "契约查询：签名与方法清单",
+    "tags": [
+     "expr",
+     "className",
+     "full",
+     "方法"
+    ],
+    "body": "op=signature 查某表达式的参数顺序与 arity；op=methods 列某个类沿原型链有哪些方法，full:true 才带每方法签名。写自定义 eda.* 代码前先用它确认方法存在，别靠记忆。只读秒回。"
+   }
+  },
+  "lceda-tools.lceda_datasheet": {
+   "pitfalls": {
+    "title": "viewer 件与 LCSC 串号",
+    "tags": [
+     "pitfalls",
+     "datasheet",
+     "viewer",
+     "lcsc",
+     "getByLcscIds"
+    ],
+    "body": "szlcsc viewer 页无 pdf 直链、wmsc API 已 404 ⇒ 只能靠搜索回落（最多试 maxCandidates≤5），境外站走代理、单次 curl 60 s 超时。封装几何 → lceda_footprint。getByLcscIds 会串号，返回带 warn 时以返回件为准。"
+   },
+   "overview": {
+    "title": "三个 op：查链、落盘、查缓存",
+    "tags": [
+     "search",
+     "fetch",
+     "list",
+     "lcsc",
+     "deviceUuid"
+    ],
+    "body": "op=search 查器件手册链类型（pdf 直链 / viewer 页）；op=fetch 落盘 PDF（需 lcsc 或 deviceUuid，dir 改目录、force 重下、maxCandidates 限回落后选数）；op=list 查已缓存文件。"
+   }
+  },
+  "lceda-tools.lceda_pinmap": {
+   "detail": {
+    "title": "为什么不自己推旋转",
+    "tags": [
+     "detail",
+     "pinmap",
+     "rotation",
+     "bbox"
+    ],
+    "body": "坐标是宿主真值，不要按「左侧 180 / 右侧 0」人肉推旋转规则，器件一转就错。该工具比「先放再读再挪」省两步，但只判放不放得下；落库后的真实坐标以 lceda_pins 为准。"
+   },
+   "overview": {
+    "title": "放件前预算引脚坐标",
+    "tags": [
+     "lcsc",
+     "deviceUuid",
+     "rotation",
+     "mirror",
+     "bbox"
+    ],
+    "body": "给 lcsc 或 deviceUuid 加 x,y,rotation,mirror：内部执行「放置→读脚→同脚本删除」，返回每脚绝对坐标、相对偏移与 bbox。文档不留对象。"
+   }
+  },
+  "hat-market.hat_summary": {
+   "pitfalls": {
+    "title": "口径边界：样本、单日、仿真库",
+    "tags": [
+     "pitfalls",
+     "summary",
+     "sample",
+     "mock",
+     "products"
+    ],
+    "body": "单品的竞品口径用 hat-market.hat_products。样本受采集关键词影响，不存在全市场口径。这是单日快照，没有时序。hat.db 曾混入过 mock 仿真数据（仿真库 hat-sim.db 与真实库物理隔离）⇒ 用前先确认 platform 只有 pdd/taobao 且条数可信。"
+   },
+   "overview": {
+    "title": "大盘第一站",
+    "tags": [
+     "样本量",
+     "销量",
+     "款型",
+     "行情"
+    ],
+    "body": "回答「帽子行情怎么样」的第一站：样本量、各平台在售与销量、券后价中位、有券率、Top100 爆款的款型分布。"
+   }
+  },
+  "hat-market.hat_styles": {
+   "pitfalls": {
+    "title": "产能指标与长尾",
+    "tags": [
+     "pitfalls",
+     "styles",
+     "capacity",
+     "longtail"
+    ],
+    "body": "单款产能越高=越少而精，低且商品数多=红海。商品数少的款型（如贝雷帽仅 2 款）产能波动极大。未识别款型通常是没有标准款名词的长尾，不计入任何款型。"
+   },
+   "overview": {
+    "title": "款型画像怎么读",
+    "tags": [
+     "款型",
+     "产能",
+     "有券率",
+     "佣金率"
+    ],
+    "body": "每行一个款型：单款产能（销量合计/商品数，越高越少而精）、商品数、有券率、佣金率中位、券后价中位。回答「哪些款好卖、哪个款是红海」。"
+   }
+  },
+  "hat-market.hat_price_matrix": {
+   "bands": {
+    "title": "价格分档",
+    "tags": [
+     "价格",
+     "销量",
+     "价位",
+     "矩阵"
+    ],
+    "body": "分档边界：<10 / 10-20 / 20-30 / 30-50 / 50-80 / 80-150 / 150+ 元，按券后价切。空格子要结合该款型总销量与历史快照判断是「没需求」还是「没人做」。"
+   },
+   "overview": {
+    "title": "矩阵怎么读",
+    "tags": [
+     "价格",
+     "销量",
+     "价位",
+     "矩阵"
+    ],
+    "body": "行=款型、列=券后价带，格子=该款型在该价位段的销量合计。空格子=该价位该款还没人做（机会）或没需求；深色大数字=已卷死。"
+   }
+  },
+  "hat-market.hat_collect": {
+   "pitfalls": {
+    "title": "采集口径与限速",
+    "tags": [
+     "pitfalls",
+     "collect",
+     "keyword",
+     "ratelimit"
+    ],
+    "body": "凭据在 ~/work/hat-market/.env（PDD_CLIENT_ID / SECRET / PID）。拼多多单页最多 100 条、深度约 1000 条（10 页）。只搜「帽子」会漏长尾，只搜款型名会放大该款型 ⇒ 采集词集合固定后再横向比。client_id 未在开发者中心绑定报 50001，PID 未备案报 60001。"
+   },
+   "overview": {
+    "title": "一次采集写什么",
+    "tags": [
+     "keywords",
+     "pages",
+     "sort_type",
+     "with_coupon",
+     "price_min"
+    ],
+    "body": "调一次就把拼多多官方 API 的搜索结果写进 hat.db：keywords 必填，pages 控页数，sort_type / with_coupon / price_min / price_max 过滤，force 覆盖已有快照。采集完其它工具才有新数据。"
+   }
+  },
+  "freeroute.freeroute_route": {
+   "overview": {
+    "title": "四步一条龙",
+    "tags": [
+     "dsn",
+     "ses",
+     "widths",
+     "max_seconds"
+    ],
+    "body": "export_dsn（注入线宽）→ freerouting → import_ses（回写线宽）→ DRC/连通性验收。立创内置布线也能用 jlceda.pcb_auto_route_nets，但它不走 DSN。"
+   },
+   "pitfalls": {
+    "title": "线宽被压平与布通率",
+    "tags": [
+     "ses",
+     "widths",
+     "tag",
+     "passes"
+    ],
+    "body": "LCEDA 导入 SES 会把所有线宽压平成 10 mil ⇒ 必须让工具回写（默认开）。板子必须先清空走线，否则 DSN 全是 protected wire 被拒。宽线会让 freerouting 剩下 8~13 个连接布不通：宽度与布通率要权衡。"
+   }
+  },
+  "freeroute.pour_rebuild": {
+   "overview": {
+    "title": "三条兜底与判据",
+    "tags": [
+     "verified",
+     "primitive_ids",
+     "timeout_s",
+     "recovery"
+    ],
+    "body": "顺序：原生批量重建 → recovery 重试 → eda 兜底。判据只认板面回读的 Poured 计数，不看原生返回值。"
+   },
+   "pitfalls": {
+    "title": "unknown commit state 怎么办",
+    "tags": [
+     "verified",
+     "recovery",
+     "primitive_ids",
+     "timeout_s"
+    ],
+    "body": "本机实测该状态自愈不了：三条兜底都失败时重启 jlceda-native 桥或 GUI 重建。多为外部 eda.* 直改造成，先把未确认写入回读确认再重试。"
    }
   }
  }

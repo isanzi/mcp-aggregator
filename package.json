@@ -1,0 +1,17 @@
+{
+  "name": "mcp-aggregator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP 工具聚合器：把多家下游 MCP 折叠成 catalog / describe / call 三个入口",
+  "main": "index.mjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.2.0"
+  }
+}
