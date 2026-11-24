@@ -3,14 +3,14 @@
 把 **18 个** MCP 服务器（kicad / kicad-gui / jlceda / lceda-tools / freecad / dshlink / playwright /
 chrome-devtools / github / context7 / pdf / fetch / lceda-cli / jlceda-native / konnect / freeroute /
 skills / hat-market）
-的 **428 个**工具折叠成 **3 个**常驻工具，省掉每轮请求里成百 KB 的工具声明。
+的 **852 个**工具折叠成 **3 个**常驻工具，省掉每轮请求里成百 KB 的工具声明。
 
 完整声明按需 describe；折叠后 `tools/list` 约 **2.9 KB**。当前 `batch` 与 `load` 关闭，入口是 `catalog / describe / call` 3 个；`hub.strictFlow` 默认关，
 首次 `call` 会自动补发说明书（`hub.firstCallDecl=full`，预算 4096 B）。
 
 | 工具 | 作用 |
 |---|---|
-| `catalog({query?, server?, limit?})` | 无参 = 每服务器工具**数量**概览；带 query = 命中列表 `server.tool(签名) — 描述前 84 字符`（默认 limit 40） |
+| `catalog({query?, server?, limit?})` | 无参 = 每服务器工具**数量**概览；带 query = **场景词（可选）+ ≤4 个功能词**，按命中数排序，每行带 `[命中 k/N]`，默认列 **10 行**（详见 [docs/catalog-contract.md](docs/catalog-contract.md)） |
 | `describe({tool})` | 该工具的完整描述 + 参数契约（多 op 按 op 拆表）；原始 JSON schema 只走 `describe({tool:"srv.tool#schema"})` |
 | `call({tool, arguments?})` | 调用；结果原样返回（text/image 都透传）；**首次调用会在结果前附带该工具的声明** |
 | `batch(...)` | 实验入口，当前配置关闭。恢复后用于跨 server 并发、同 server 串行调用。 |
@@ -25,17 +25,20 @@ skills / hat-market）
 - 启动：`node index.mjs`；HTTP 模式默认 `127.0.0.1:8877`，用 `AGG_HTTP_PORT` 覆盖。
 - 升级 SDK：改 `package.json` 版本号再重装。**不要**改用指向 DSH 安装目录的 `node_modules` 软链——DSH 或 node 版本一变就 `ERR_MODULE_NOT_FOUND`（历史踩过）。
 
-## 工具发现（2026-11-08）
+## 检索契约（catalog）
 
-`catalog` 使用字段加权检索后再按预算截断，不再按 catalog 遍历顺序截断：
+完整契约见 [docs/catalog-contract.md](docs/catalog-contract.md)，要点：
 
-- 加权字段：tool/server 名、`hub-summary` 的 `fn/when`、`hub-notes`、手册标题/tags、
-  原始 description、参数名与 enum。
-- 中文按短语和二字片段切分；英文 snake_case/camelCase 会拆词。
-- `hub.alias` 是强优先级；更长的别名会压过它包含的短别名。
-- `hub.synonyms` 做可配置查询扩展，例如“短路 → DRC”“钻孔 → Gerber/drill”。
-- 工具名拼写错误时，`describe`/`call` 返回最近的工具候选。
-- `discovery-eval.json` 保存自然语言发现回归用例；`selftest.mjs` 检查 Top-5 命中率和 Top-1 汇总。
+- **查询构成**：`可选场景词 + 最多 4 个功能词`。场景词（立创 / easyeda / 嘉立创 / kicad / freecad /
+  手机 / 浏览器 / github）**可省略**，写了就是**硬作用域**（只在对应下游里检索），且不计入关键词。
+- **功能词之间是「或」**，按**命中个数**排序；同数时依次比：工具名命中 → 摘要命中 → 关键词稀有度
+  → 字段加权分。每行带 `[命中 k/N]`，别名兜底标 `[别名]`。
+- **窗口**：默认 10 行；第 10 名之后只剪「命中 1 个且分低」的长尾，前 10 名一律保留。
+- **零命中兜底**：正常规则一条都没有时，按「整词字面出现」再查一次，命中则头行标注
+  `（宽松匹配：整词未命中，按子串兜底）`。
+- **关键词由调用方自己拆**：2–4 个短词，不投整句；词尽量用工具名里的英文片段或摘要里独立出现的中文名词。
+- `hub.alias` / `hub.synonyms` / `hub.scenes` 仍是数据层，分别负责别名提权、查询扩展、场景路由。
+- `discovery-eval.json` 保存发现回归用例（关键词形式）；`selftest.mjs` 检查 Top-5 命中与 Top-1 汇总。
 
 ## 说明书投递 + 参数预检（v2，2026-11-05）
 
