@@ -172,15 +172,16 @@ async function catalogChecks() {
   add('C3', '别名提权：catalog({query:"手机"}) 首行是 dshlink.*', /dshlink\./.test(first2), first2.slice(0, 120))
 
   const fmt = await toolsCall('catalog', { query: 'pdf read' })
-  const lines = fmt.text.split('\n').filter((l) => /^[\w-]+\.[\w.-]+\(/.test(l))
+  const lines = fmt.text.split('\n').filter((l) => /^(?:\[[^\]]*\]\s*)?[\w-]+\.[\w.-]+\(/.test(l))
   const okFmt = lines.length > 0 && lines.every((l) => /\) — .+｜用法: /.test(l))
   const descTooLong = lines.filter((l) => { const d = l.split(' — ')[1] || ''; return d.length > 150 })
   add('C4', 'catalog 行格式 = server.tool(必填签名) — fn ｜用法: when，desc ≤150 字符',
     okFmt && descTooLong.length === 0, 'lines=' + lines.length + ' bad=' + descTooLong.length + ' e.g. ' + (lines[0] || '').slice(0, 130))
 
   const big = await toolsCall('catalog', { query: 'e', limit: 999 })
-  add('C5', 'catalog 整段 ≤ catalogBudgetBytes(6000 B) 且超预算有截断提示',
-    big.bytes <= 6000 + 200 && (big.bytes <= 6000 || /预算截断/.test(big.text)), 'B=' + big.bytes + ' truncated=' + /预算截断/.test(big.text))
+  add('C5', 'catalog 整段 ≤ catalogBudgetBytes(' + BUD.catalog + ' B) 且超预算有截断提示',
+    big.bytes <= BUD.catalog + 200 && (big.bytes <= BUD.catalog || /预算截断/.test(big.text)),
+    'B=' + big.bytes + ' budget=' + BUD.catalog + ' truncated=' + /预算截断/.test(big.text))
 
   const sig = await toolsCall('catalog', { query: 'lceda_batch' })
   const sigLine = sig.text.split('\n').find((l) => l.includes('lceda_batch')) || ''
@@ -208,7 +209,7 @@ async function discoveryChecks() {
   for (const [index, item] of cases.entries()) {
     const r = await toolsCall('catalog', { query: item.query, limit: 8 })
     const refs = r.text.split('\n')
-      .map((line) => (line.match(/^([\w-]+\.[\w.-]+)\(/) || [])[1])
+      .map((line) => (line.match(/^(?:\[[^\]]*\]\s*)?([\w-]+\.[\w.-]+)\(/) || [])[1])
       .filter(Boolean)
     const accepted = new Set(item.accept ?? [])
     const pass = refs.slice(0, 5).some((ref) => accepted.has(ref))
@@ -222,13 +223,15 @@ async function discoveryChecks() {
 // ---------------------------------------------------------------- describe
 async function describeChecks() {
   const d = await toolsCall('describe', { tool: 'pdf.read_pdf' })
-  // 新契约：describe 不下发裸 JSON schema，给「按 op 参数表 / 参数块」+ #schema 指针
-  const hasParamContract = /\[参数表\]|\[参数\]/.test(d.text)
-  const hasRawSchema = /parameters:\s*\{/.test(d.text)
-  const hasPointer = /describe\(\{tool:"pdf\.read_pdf#schema"\}\)/.test(d.text)
-  add('D1', 'describe 返回 判据块 + 参数契约（无裸 schema，带 #schema 指针）',
-    /^\[判据\] pdf\.read_pdf/.test(d.text.trim()) && hasParamContract && !hasRawSchema && hasPointer,
-    'B=' + d.bytes + ' 参数契约=' + hasParamContract + ' 裸schema=' + hasRawSchema + ' 指针=' + hasPointer)
+  // 契约（2026-11-22 用户指定）：describe = 可选 [红线] + 整份 [schema]；不再发参数契约/章节索引/#schema 指针
+  const hasRed = /^\[红线\] pdf\.read_pdf/.test(d.text.trim())
+  const schemaLine = (d.text.split('[schema] pdf.read_pdf')[1] || '').trim()
+  let schemaOk = false, schemaProps = []
+  try { const sc = JSON.parse(schemaLine); schemaOk = sc.type === 'object'; schemaProps = Object.keys(sc.properties ?? {}) } catch {}
+  add('D1', 'describe = 可选[红线] + 整份 [schema]（合法 JSON schema；无参数契约/章节/指针）',
+    schemaOk && schemaProps.includes('file_path')
+      && !/\[参数表\]|\[参数\]/.test(d.text) && !/\[手册章节\]/.test(d.text) && !/#schema"\)/.test(d.text),
+    'B=' + d.bytes + ' 红线=' + hasRed + ' schema合法=' + schemaOk + ' props=' + schemaProps.length)
 
   const raw = await toolsCall('describe', { tool: 'pdf.read_pdf#schema' })
   let rawOk = false, req = []
@@ -237,9 +240,9 @@ async function describeChecks() {
     rawOk && req.includes('file_path'), 'B=' + raw.bytes + ' req=' + req.join(','))
 
   const man = await toolsCall('describe', { tool: 'lceda-tools.lceda_batch' })
-  const secs = (man.text.match(/op:\w+/g) || []).length
-  add('D2', 'describe 对有大工具给出章节索引（[手册章节] 列表）',
-    /\[手册章节\]/.test(man.text) && secs >= 3, '章节引用=' + secs + ' B=' + man.bytes)
+  add('D2', '整份 describe 不再内联章节索引（章节只由 #<章> 路径提供，见 D3）',
+    !/\[手册章节\]/.test(man.text) && /\[schema\] lceda-tools\.lceda_batch/.test(man.text),
+    'B=' + man.bytes + ' 章节=' + /\[手册章节\]/.test(man.text))
 
   const chap = await toolsCall('describe', { tool: 'lceda-tools.lceda_batch#op:wire' })
   add('D3', 'describe(...#章节) 只回单章（≤1200 B，仍带索引）',
@@ -273,7 +276,7 @@ async function preflightChecks() {
 
   // 预检拦下时不应有下游往返：同一工具真派发 vs 被拦下的耗时对比（pdf 真读一页 ≈100 ms 级）
   await newSession()
-  const real = await toolsCall('call', { tool: 'pdf.read_pdf', arguments: { file_path: process.env.SELFTEST_PDF || '/tmp/sample.pdf', mode: 'text_only', pages: '1' } })
+  const real = await toolsCall('call', { tool: 'pdf.read_pdf', arguments: { file_path: '/home/isanzi/work/datasheets/snoa549.pdf', mode: 'text_only', pages: '1' } })
   add('P4', '预检拦下是本地回复（无下游往返）：被拦 < 真派发耗时的 1/3',
     miss.ms * 3 < real.ms + 3, 'blocked=' + miss.ms + 'ms real=' + real.ms + 'ms realB=' + real.bytes + ' realIsError=' + real.isError)
 }
@@ -287,21 +290,28 @@ async function declChecks() {
   add('E1', '未 describe 首调：content[0]=真结果，末尾单独一块=说明书（不污染 content[0]）',
     !a.isError && a.blocks === 2 && /^\[说明书·自动补发\]/.test(a.decl) && !/\[判据\]/.test(a.first),
     'blocks=' + a.blocks + ' declB=' + a.declB + ' firstHasNote=' + /\[判据\]/.test(a.first))
-  add('E2', '首调带回的内容与 describe 同构（判据块 + 参数契约 + #schema 指针，无裸 schema）',
-    /\[参数表\]|\[参数\]/.test(a.decl) && a.decl.includes('[判据] dshlink.status') && a.decl.includes('#schema"})') && !/parameters:\s*\{/.test(a.decl),
-    'declB=' + a.declB + ' 参数契约=' + /\[参数表\]|\[参数\]/.test(a.decl) + ' 指针=' + a.decl.includes('#schema"})') + ' budget=' + BUD.decl)
+  const declSchema = (a.decl.split('[schema] dshlink.status')[1] || '').trim()
+  let declSchemaOk = false
+  try { declSchemaOk = JSON.parse(declSchema).type === 'object' } catch {}
+  add('E2', '首调补发与 describe 同构（可选[红线] + 整份 [schema]，无参数契约/指针）',
+    /\[schema\] dshlink\.status/.test(a.decl) && declSchemaOk
+      && !/\[参数表\]|\[参数\]/.test(a.decl) && !/#schema"\)/.test(a.decl),
+    'declB=' + a.declB + ' schema合法=' + declSchemaOk + ' budget=' + BUD.decl)
 
   const b = await toolsCall('call', { tool: 'dshlink.status', arguments: {} }, { noDescribe: true })
   add('E3', '同工具第二次调用不再重复投递（blocks=1）', b.blocks === 1 && !b.decl, 'blocks=' + b.blocks + ' declB=' + b.declB)
-  const dup = (a.decl.match(/\[判据\] dshlink\.status/g) || []).length
-  add('E4', '说明书内部判据块只出现一次', dup === 1, '[判据] x' + dup)
+  const dup = (a.decl.match(/\[schema\] dshlink\.status/g) || []).length
+  add('E4', '说明书主体（[schema] 段）只出现一次', dup === 1, '[schema] x' + dup)
 
-  // 大工具（schema 4–47 KB 一族）：任何路径下都只给「必填 + 判据 + 指针」，绝不灌整份 schema
+  // 最大件（jlceda-native.pcb_document_action ≈ 47 KB schema）：新契约整份内联，用上限护栏盯住成本。
+  // 注：首调路径无法安全测（会真派发下游动作），故测 describe 侧——补发与它同构（E2 已验）。
   await newSession()
-  const big = await toolsCall('call', { tool: 'lceda-tools.lceda_batch', arguments: {} }, { noDescribe: true })
-  add('E5', '大工具首调：单块 ≤ ' + BUD.decl + 'B 且带 describe 指针（不灌 schema）',
-    big.blocks === 1 && big.bytes <= BUD.decl + 400 && /完整 schema: describe/.test(big.text) && !/parameters:\n\{/.test(big.text),
-    'blocks=' + big.blocks + ' B=' + big.bytes + ' isError=' + big.isError)
+  const huge = await toolsCall('describe', { tool: 'jlceda-native.pcb_document_action' })
+  const hugeBody = (huge.text.split('[schema] jlceda-native.pcb_document_action')[1] || '').trim()
+  let hugeOk = false
+  try { hugeOk = JSON.parse(hugeBody).type === 'object' } catch {}
+  add('E5', '最大件 describe：整份 [schema] 可解析且 ≤ 64 KB（新契约成本护栏）',
+    hugeOk && huge.bytes <= 65536, 'B=' + huge.bytes + ' 可解析=' + hugeOk)
 
   // 报错路径：isError 透传，说明书照样带回（不再依赖 structuredContent，宿主丢不掉）
   await newSession()

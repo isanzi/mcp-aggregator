@@ -2018,7 +2018,7 @@
      "mirror",
      "bbox"
     ],
-    "body": "给 lcsc 或 deviceUuid 加 x,y,rotation,mirror：内部执行「放置→读脚→同脚本删除」，返回每脚绝对坐标、相对偏移与 bbox。文档不留对象。"
+    "body": "给 lcsc 或 deviceUuid 加 x,y,rotation,mirror：内部执行「放置→读脚→同脚本删除」，返回每脚绝对坐标与 bbox。文档不留对象。"
    }
   },
   "hat-market.hat_summary": {

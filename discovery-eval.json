@@ -1,0 +1,238 @@
+{
+  "_note": "Natural-language discovery regression cases. A case passes when any accepted tool appears in the top five results.",
+  "cases": [
+    {
+      "query": "画原理图",
+      "accept": [
+        "lceda-tools.lceda_batch",
+        "lceda-tools.lceda_execute",
+        "lceda-tools.lceda_symbol_create",
+        "kicad.generate_netlist"
+      ]
+    },
+    {
+      "query": "放器件",
+      "accept": [
+        "lceda-tools.lceda_device",
+        "lceda-tools.lceda_batch",
+        "lceda-tools.lceda_pinmap"
+      ]
+    },
+    {
+      "query": "检查网表",
+      "accept": [
+        "lceda-tools.lceda_netcheck",
+        "jlceda.sch_get_netlist",
+        "kicad.generate_netlist"
+      ]
+    },
+    {
+      "query": "生成BOM",
+      "accept": [
+        "jlceda.pcb_bom_export"
+      ]
+    },
+    {
+      "query": "读取数据手册页图",
+      "accept": [
+        "pdf.read_pdf"
+      ]
+    },
+    {
+      "query": "手机传文件",
+      "accept": [
+        "dshlink.push",
+        "dshlink.files",
+        "dshlink.status"
+      ]
+    },
+    {
+      "query": "批量移动元件",
+      "accept": [
+        "lceda-tools.lceda_batch",
+        "jlceda.pcb_batch_move",
+        "kicad-gui.batch_move_components"
+      ]
+    },
+    {
+      "query": "导出钻孔文件",
+      "accept": [
+        "kicad.export_gerber",
+        "lceda-tools.lceda_gerber_export"
+      ]
+    },
+    {
+      "query": "铺铜后重建",
+      "accept": [
+        "freeroute.pour_rebuild",
+        "jlceda.pcb_create_copper_pour"
+      ]
+    },
+    {
+      "query": "检查短路",
+      "accept": [
+        "jlceda.pcb_run_drc",
+        "kicad.run_drc",
+        "kicad.get_drc_violations"
+      ]
+    },
+    {
+      "query": "跑 DRC",
+      "accept": [
+        "jlceda.pcb_run_drc",
+        "kicad.run_drc",
+        "jlceda-native.pcb_drc_check"
+      ]
+    },
+    {
+      "query": "原理图 ERC",
+      "accept": [
+        "kicad.run_erc",
+        "jlceda.sch_run_drc",
+        "jlceda-native.schematic_drc_check"
+      ]
+    },
+    {
+      "query": "画走线",
+      "accept": [
+        "jlceda.pcb_route_track",
+        "kicad-gui.route_trace",
+        "kicad.add_wire"
+      ]
+    },
+    {
+      "query": "打过孔",
+      "accept": [
+        "jlceda.pcb_create_via"
+      ]
+    },
+    {
+      "query": "算走线阻抗",
+      "accept": [
+        "jlceda.calc_impedance"
+      ]
+    },
+    {
+      "query": "截 PCB 图",
+      "accept": [
+        "jlceda.pcb_screenshot",
+        "lceda-tools.lceda_screenshot"
+      ]
+    },
+    {
+      "query": "读引脚坐标",
+      "accept": [
+        "lceda-tools.lceda_pins"
+      ]
+    },
+    {
+      "query": "器件 搜索",
+      "accept": [
+        "jlceda-native.library_search",
+        "kicad.search_parts_registry"
+      ],
+      "_naive": "搜器件找料"
+    },
+    {
+      "query": "信号 完整性",
+      "accept": [
+        "kicad.analyze_pcb_signal_integrity"
+      ],
+      "_naive": "信号完整性分析"
+    },
+    {
+      "query": "导出 3D STEP",
+      "accept": [
+        "kicad.export_pcb_3d"
+      ]
+    },
+    {
+      "query": "板子 层数",
+      "accept": [
+        "jlceda.pcb_get_board_info",
+        "kicad-gui.get_board_info"
+      ],
+      "_naive": "看板子层数"
+    },
+    {
+      "query": "开 PR",
+      "accept": [
+        "github.create_pull_request"
+      ]
+    },
+    {
+      "query": "看 PR diff",
+      "accept": [
+        "github.pull_request_read",
+        "github.issue_read"
+      ]
+    },
+    {
+      "query": "搜代码",
+      "accept": [
+        "github.search_code"
+      ]
+    },
+    {
+      "query": "分支 列表",
+      "accept": [
+        "github.list_branches",
+        "github.ui_get"
+      ],
+      "_naive": "列分支"
+    },
+    {
+      "query": "浏览器 导航",
+      "accept": [
+        "playwright.browser_navigate",
+        "chrome-devtools.navigate_page"
+      ],
+      "_naive": "浏览器打开网页"
+    },
+    {
+      "query": "网页截图",
+      "accept": [
+        "playwright.browser_take_screenshot",
+        "chrome-devtools.take_screenshot"
+      ]
+    },
+    {
+      "query": "浏览器 console",
+      "accept": [
+        "chrome-devtools.list_console_messages",
+        "playwright.browser_console_messages"
+      ],
+      "_naive": "看浏览器控制台报错"
+    },
+    {
+      "query": "在 FreeCAD 里跑 Python",
+      "accept": [
+        "freecad.execute_code",
+        "freecad.execute_code_headless",
+        "freecad.execute_code_async"
+      ]
+    },
+    {
+      "query": "看 FreeCAD 有哪些对象",
+      "accept": [
+        "freecad.list_documents",
+        "freecad.get_objects"
+      ]
+    },
+    {
+      "query": "工程快照存档",
+      "accept": [
+        "jlceda.pcb_design_snapshot",
+        "konnect.snapshot_project",
+        "jlceda-native.design_archive_export"
+      ]
+    },
+    {
+      "query": "查库文档",
+      "accept": [
+        "context7.resolve-library-id",
+        "context7.query-docs"
+      ]
+    }
+  ]
+}

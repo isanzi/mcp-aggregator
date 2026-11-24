@@ -531,6 +531,21 @@ function startConnect(entry) {
       return
     }
     setCatalog(entry, listed.tools)
+    // 开箱：若下游支持动态工具集（konnect load_toolset / kicad-gui open_toolbox），
+    // 连接后按 spec.initCalls 预加载，再重新 list 一次把工具灌进索引。
+    if (Array.isArray(spec.initCalls) && spec.initCalls.length) {
+      for (const ic of spec.initCalls) {
+        try {
+          await withTimeout(client.callTool({ name: ic.tool, arguments: ic.arguments ?? {} }), CONNECT_TIMEOUT_MS, name + ' initCall ' + ic.tool)
+          log('initCall ok', name, ic.tool)
+        } catch (e) { log('initCall failed', name, ic.tool, '->', String(e?.message ?? e)) }
+      }
+      try {
+        const relisted = await listAll(client, 'listTools', 'tools', CONNECT_TIMEOUT_MS, name + ' tools/list after initCalls')
+        setCatalog(entry, relisted.tools)
+        log('catalog after initCalls', name, 'tools=' + entry.catalog.size)
+      } catch (e) { log('relist after initCalls failed', name, '->', String(e?.message ?? e)) }
+    }
     entry.connected = true
     entry.status = 'ready'
     entry.attempts = 0
@@ -652,6 +667,7 @@ const norm = (s) => String(s).replace(/^mcp__/, '').replace(/\./g, '__')
 // create fresh documents without a process-global rebuild step.
 const SEARCH = HUB.search ?? {}
 const SEARCH_SYNONYMS = (HUB.synonyms && typeof HUB.synonyms === 'object') ? HUB.synonyms : {}
+const SEARCH_SCENES = (HUB.scenes && typeof HUB.scenes === 'object') ? HUB.scenes : {}
 const SEARCH_STOP = new Set([
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'how', 'in', 'is',
   'it', 'no', 'of', 'on', 'or', 'please', 'such', 'the', 'to', 'tool', 'tools', 'use',
@@ -670,6 +686,9 @@ function normalizeSearchText(value) {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+// 去空白比较：normalizeSearchText 会把 FreeCAD 拆成 "free cad"，场景词/同义词检测用它兜住大小写拼写
+const compactText = (s) => String(s ?? '').replace(/\s+/g, '')
 
 function addSearchTokens(text, out) {
   const normalized = normalizeSearchText(text)
@@ -740,7 +759,18 @@ function queryInfo(query) {
     for (const value of (Array.isArray(values) ? values : [values])) addSearchTokens(value, expanded)
   }
   for (const token of tokens) expanded.delete(token)
-  return { normalized, tokens: [...tokens], expanded: [...expanded] }
+  // 场景词（立创 / kicad / 手机 …）：识别后从检索词剔除，改用于下游加权
+  const scenes = []
+  const sceneKeys = new Set()
+  for (const [name, servers] of Object.entries(SEARCH_SCENES)) {
+    const k = normalizeSearchText(name)
+    if (!k || !compactText(normalized).includes(compactText(k))) continue
+    sceneKeys.add(k)
+    for (const s of (Array.isArray(servers) ? servers : [servers])) if (!scenes.includes(String(s))) scenes.push(String(s))
+  }
+  const keptTokens = [...tokens].filter((t) => !sceneKeys.has(t))
+  const keptExpanded = [...expanded].filter((t) => !sceneKeys.has(t))
+  return { normalized, tokens: keptTokens, expanded: keptExpanded, scenes, sceneKeys: [...sceneKeys] }
 }
 
 const countMatches = (tokens, haystack) => tokens.reduce((n, token) => n + (haystack.has(token) ? 1 : 0), 0)
@@ -750,7 +780,7 @@ function fieldSearchScore(tokens, haystack, weight) {
   return ratio(countMatches(tokens, haystack), tokens.length) * weight
 }
 
-function buildAliasBoosts(query, entries) {
+function buildAliasBoosts(query, entries, scenes) {
   const q = normalizeSearchText(query)
   const boosts = new Map()
   for (const [key, refs] of Object.entries(ALIAS)) {
@@ -761,6 +791,7 @@ function buildAliasBoosts(query, entries) {
     refs.forEach((ref, index) => {
       const e = resolveTool(String(ref))
       if (!e || !entries.includes(e)) return
+      if (Array.isArray(scenes) && scenes.length && !scenes.includes(String(e.server))) return
       const score = Math.max(boosts.get(e) ?? 0, 100000 + k.length * 1000 - index * 500)
       boosts.set(e, score)
     })
@@ -773,7 +804,11 @@ function scoreSearchEntry(e, qi, aliasBoost) {
   const { tokens, expanded, normalized } = qi
   const baseMatched = countMatches(tokens, d.allTokens)
   const expandedMatched = countMatches(expanded, d.allTokens)
-  if (!baseMatched && !expandedMatched && !aliasBoost && d.ref !== normalized) return null
+  const allBase = tokens.length ? baseMatched === tokens.length : false
+  // 多词查询：未全部命中时不作为主结果（只允许别名/精确定位兜底）
+  if (tokens.length > 1 && !allBase && !aliasBoost && d.ref !== normalized) return null
+  // 单词查询才允许纯同义词扩展入列（中文词桥接英文工具）
+  if (!baseMatched && !aliasBoost && d.ref !== normalized && !(tokens.length <= 1 && expandedMatched)) return null
 
   let score = aliasBoost
   if (d.ref === normalized || norm(d.ref) === norm(normalized)) score += 2000
@@ -787,7 +822,12 @@ function scoreSearchEntry(e, qi, aliasBoost) {
   score += fieldSearchScore(tokens, d.schemaTokens, 15)
   score += ratio(baseMatched, tokens.length) * 35
   if (tokens.length && baseMatched === tokens.length) score += 25
-  score += ratio(expandedMatched, expanded.length) * 18
+  if (baseMatched || tokens.length <= 1) score += ratio(expandedMatched, expanded.length) * 18
+  // 场景词命中：对应下游加权，其它下游降权（同一能力跨通道时以场景为准）
+  if (qi.scenes && qi.scenes.length) {
+    if (qi.scenes.includes(String(e.server))) score += 900
+    else score *= 0.05
+  }
 
   if (normalized && normalized.length >= 2) {
     if (d.nameText.includes(normalized)) score += 120
@@ -798,18 +838,92 @@ function scoreSearchEntry(e, qi, aliasBoost) {
   return score >= SEARCH_MIN_SCORE ? score : null
 }
 
+// 用户「输入的几个关键词」= 按空白/标点切出的段；丢弃单字中文（噪声），每段取其扩展 token 集
+function queryKeywords(query) {
+  const out = []
+  for (const part of String(query ?? '').split(/[\s,，、;；|/]+/)) {
+    const kn = normalizeSearchText(part)
+    if (!kn || kn.length < 2) continue        // 单字关键词（第/页/3）噪声太大，不计入命中数
+    // 场景词（立创/kicad/手机…）不算关键词：它们只负责给对应下游加权（见 SEARCH_SCENES）
+    if (Object.keys(SEARCH_SCENES).some((k) => compactText(normalizeSearchText(k)) === compactText(kn))) continue
+    if (out.some((x) => x.kn === kn)) continue
+    const toks = searchTokens(part)
+    // 中英桥接：同义词表里的中文键命中时，把对应英文词也补进来（导出→export、截图→screenshot）
+    for (const [key, values] of Object.entries(SEARCH_SYNONYMS)) {
+      const kk = normalizeSearchText(key)
+      if (!kk || !kn.includes(kk)) continue
+      for (const value of (Array.isArray(values) ? values : [values])) addSearchTokens(value, toks)
+    }
+    out.push({ raw: part.trim(), kn, toks })
+  }
+  return out
+}
+
 function searchEntries(query, entries) {
   const qi = queryInfo(query)
   if (!qi.tokens.length && !qi.expanded.length) return []
-  const aliasBoosts = buildAliasBoosts(query, entries)
-  const scored = []
-  for (const e of entries) {
-    const score = scoreSearchEntry(e, qi, aliasBoosts.get(e) ?? 0)
-    if (score !== null) scored.push({ e, score })
+  const aliasBoosts = buildAliasBoosts(query, entries, qi.scenes)
+  const kw = queryKeywords(query).slice(0, 4)   // 最多 4 个功能词参与排序，多余的不稀释命中数
+  const FIELD_TEXTS = (d) => [d.nameText, d.summaryText, d.noteText, d.manualText, d.descText, d.schemaText]
+  // 关键词稀有度（df）：命中数相同时，命中越罕见的词越靠前
+  const kwWeight = new Map()
+  for (const k of kw) {
+    let df = 0
+    for (const entry of entries) {
+      const d2 = searchDoc(entry)
+      if (FIELD_TEXTS(d2).some((f) => f.includes(k.kn)) || [...k.toks].some((t) => d2.allTokens.has(t))) df++
+    }
+    kwWeight.set(k.kn, 1 / Math.max(1, df))
   }
-  scored.sort((a, b) => b.score - a.score
-    || String(a.e.server + '.' + a.e.tool).localeCompare(String(b.e.server + '.' + b.e.tool)))
+  const byRef = (a, b) => String(a.e.server + '.' + a.e.tool).localeCompare(String(b.e.server + '.' + b.e.tool))
+  const scored = []
+  if (kw.length <= 1) {
+    // 单个关键词（多为自然语言短语）：仍走旧评分管线，但按「那一个关键词」检索（此时看整句 bigram 会全部 miss）
+    const one = queryInfo(kw[0] ? kw[0].raw : query)
+    for (const e of entries) {
+      const score = scoreSearchEntry(e, one, aliasBoosts.get(e) ?? 0)
+      if (score !== null) scored.push({ e, score, matched: kw.length ? 1 : 0, wsum: 0, of: kw.length, aliasOnly: false })
+    }
+    scored.sort((a, b) => (b.score - a.score) || byRef(a, b))
+    return scored
+  }
+  for (const e of entries) {
+    const d = searchDoc(e)
+    const fields = FIELD_TEXTS(d)
+    const hitWords = kw.filter((k) => fields.some((f) => f.includes(k.kn)) || [...k.toks].some((t) => d.allTokens.has(t)))
+    const matched = hitWords.length
+    // 字段分级：命中「工具名」比命中「手册/描述」更有分量（治"手册里提过就当命中"）
+    const toolToks = searchTokens(d.tool)
+    const nameHits = hitWords.filter((k) => d.tool.includes(k.kn) || [...k.toks].some((t) => toolToks.has(t))).length
+    const summaryHits = hitWords.filter((k) => d.summaryText.includes(k.kn) || [...k.toks].some((t) => d.summaryTokens.has(t))).length
+    const aliasBoost = aliasBoosts.get(e) ?? 0
+    const exact = d.ref === qi.normalized || norm(d.ref) === norm(qi.normalized)
+    if (!matched && !aliasBoost && !exact) continue      // 零命中不显示
+    const wsum = hitWords.reduce((sum, k) => sum + (kwWeight.get(k.kn) ?? 0), 0)
+    const score = scoreSearchEntry(e, qi, aliasBoost) ?? (aliasBoost || 1)
+    scored.push({ e, score, matched, nameHits, summaryHits, wsum, of: kw.length, aliasOnly: !matched && !exact })
+  }
+  scored.sort((a, b) => (a.aliasOnly - b.aliasOnly) || (b.matched - a.matched) || ((b.nameHits ?? 0) - (a.nameHits ?? 0)) || ((b.summaryHits ?? 0) - (a.summaryHits ?? 0)) || ((b.wsum ?? 0) - (a.wsum ?? 0)) || (b.score - a.score) || byRef(a, b))
   return scored
+}
+
+// 兜底检索：正常规则一条都没有时才用 —— 只按「整词字面出现在字段里」判定，不再要求双字全中
+function searchEntriesLoose(query, entries) {
+  const kw = queryKeywords(query).slice(0, 4)
+  if (!kw.length) return []
+  const qi = queryInfo(query)
+  const F = (d) => [d.nameText, d.summaryText, d.noteText, d.manualText, d.descText, d.schemaText]
+  const out = []
+  for (const e of entries) {
+    const d = searchDoc(e)
+    const fields = F(d)
+    const matched = kw.filter((k) => fields.some((f) => f.includes(k.kn))).length
+    if (!matched) continue
+    out.push({ e, score: scoreSearchEntry(e, qi, 0) ?? 50, matched, of: kw.length, aliasOnly: false })
+  }
+  const byRef = (a, b) => String(a.e.server + '.' + a.e.tool).localeCompare(String(b.e.server + '.' + b.e.tool))
+  out.sort((a, b) => (b.matched - a.matched) || (b.score - a.score) || byRef(a, b))
+  return out
 }
 
 function bigramSet(value) {
@@ -950,11 +1064,13 @@ const TOOLS = [
     description:
       'List tools of the mounted MCP servers (' + (CFG.servers ?? []).map((x) => x.name).join(', ') + '). '
       + 'No arguments = per-server overview. With query = matching tools as server.tool(signature) — one-line description. '
+      + 'Query format: up to 5 slots — an OPTIONAL leading scene word (立创/easyeda/kicad/freecad/手机/浏览器/github; also recognized anywhere in the query and never counted as a keyword) + at most 4 functional keywords. '
+      + 'Functional keywords are OR-ed and ranked by how many matched (each line tagged [命中 k/N]; alias-only last; zero-hit hidden; a low-signal tail is pruned and the first 10 lines are always kept). '
       + 'Step 1 of catalog -> describe -> call: pick a tool here, run describe to get its parameter table and manual chapters, then call.',
     inputSchema: { type: 'object', properties: {
       query: { type: 'string', description: 'Keyword(s) matched against tool name and description (case-insensitive).' },
       server: { type: 'string', description: 'Restrict to one server name.' },
-      limit: { type: 'number', description: 'Max lines (default 40).' },
+      limit: { type: 'number', description: 'Max lines (default 10; raise it when the first 10 do not contain what you need).' },
     } },
   },
   {
@@ -1013,7 +1129,7 @@ async function catalogText(a) {
   const servers = await waitAll(PRE_RESOLVE_WAIT_MS)
   const q = String(a.query ?? '').trim().toLowerCase()
   const only = a.server ? String(a.server).toLowerCase() : null
-  const limit = Number(a.limit ?? 40) || 40
+  const limit = Number(a.limit ?? 10) || 10
   if (!q) {
     const shownServers = only ? servers.filter((c) => c.name.toLowerCase() === only) : servers
     if (only && !shownServers.length) {
@@ -1035,29 +1151,41 @@ async function catalogText(a) {
       + '.\n' + lines.join('\n')
       + '\n\nNext: catalog({query:"<keyword>"}) → call({tool:"server.tool", arguments:{…}}).'
   }
+  const scoped = (queryInfo(a.query).scenes || []).map((s) => String(s).toLowerCase())
   const entries = []
   for (const c of servers) {
     if (only && c.name.toLowerCase() !== only) continue
+    if (scoped.length && !scoped.includes(c.name.toLowerCase())) continue   // 场景词 = 硬作用域
     for (const e of c.catalog.values()) {
       entries.push(e)
     }
   }
-  const hits = searchEntries(a.query, entries)
+  const kwAll = queryKeywords(a.query).length
+  let hits = searchEntries(a.query, entries)
+  let loose = false
+  if (!hits.length) {
+    const fallback = searchEntriesLoose(a.query, entries)
+    if (fallback.length) { hits = fallback; loose = true }
+  }
   if (!hits.length) {
     return 'No tool matched "' + a.query + '". Call catalog with no arguments for the server overview.'
       + suggestionBlock(a.query, entries)
   }
+  const kept = hits.slice(0, 10).concat(hits.slice(10).filter((h) => !(h.matched === 1 && h.score < 15)))
   const shown = []
   let used = 0
-  for (const { e } of hits.slice(0, limit)) {
-    const line = e.server + '.' + e.tool + '(' + sig(e.schema) + ') — ' + short(displayDesc(e), DESC_WIDTH)
+  for (const { e, matched, of, aliasOnly } of kept.slice(0, limit)) {
+    const tag = of > 1 ? '[' + (aliasOnly ? '别名' : '命中 ' + matched + '/' + of) + '] ' : ''
+    const line = tag + e.server + '.' + e.tool + '(' + sig(e.schema) + ') — ' + short(displayDesc(e), DESC_WIDTH)
     const b = Buffer.byteLength(line) + 1
     if (shown.length && used + b > CATALOG_BUDGET) break
     used += b; shown.push({ e, line })
   }
-  return hits.length + ' match(es)' + (shown.length < Math.min(hits.length, limit) ? '（输出已按 ' + CATALOG_BUDGET + ' B 预算截断）' : '') + ':\n'
+  const slotNote = kwAll > 4 ? '（功能词只取前 4 个，其余忽略）' : ''
+  const looseNote = loose ? '（宽松匹配：整词未命中，按子串兜底）' : ''
+  return kept.length + ' match(es)' + slotNote + looseNote + (shown.length < Math.min(kept.length, limit) ? '（输出已按 ' + CATALOG_BUDGET + ' B 预算截断）' : '') + ':\n'
     + shown.map((x) => x.line).join('\n')
-    + (hits.length > shown.length ? '\n… ' + (hits.length - shown.length) + ' more; narrow the query or raise limit.' : '')
+    + (kept.length > shown.length ? '\n… ' + (kept.length - shown.length) + ' more; narrow the query or raise limit.' : '')
 }
 
 async function describeText(a, sid, convo) {
@@ -1070,7 +1198,7 @@ async function describeText(a, sid, convo) {
       const id = rawRef.slice(hash + 1)
       // #schema：唯一的原始 JSON 入口（describe 正文不再内联 schema，只在核对嵌套/默认值时按需取）
       if (id.toLowerCase() === 'schema') {
-        declBag(sid, convo).add(base.server + '.' + base.tool + '#desc')
+        recordDecl(sid, convo, base.server + '.' + base.tool + '#desc')
         return '[原始 schema] ' + base.server + '.' + base.tool + '\nparameters:\n' + JSON.stringify(base.rawSchema ?? base.schema ?? { type: 'object', properties: {} })
       }
       // 章节 id 大小写不敏感（op 枚举常是 setOne，而章节按惯例小写 op:setone）
@@ -1106,31 +1234,28 @@ async function describeText(a, sid, convo) {
     e = resolveTool(a.tool)
   }
   if (!e) return 'Unknown tool "' + a.tool + '". Call catalog first.' + suggestionBlock(a.tool, allEntries())
-  const idx = sectionIndex(e)
-  // 2026-11-15（方案 A）：describe 也是"说明书"的一种发放方式 ⇒ 记下"该工具已 describe"，
-  // 之后的首次 call 就不再重复 ① 必填行/② 判据块；结果形状提示改为随 describe 每会话发一次。
   const _bag = declBag(sid, convo)
-  _bag.add(e.server + '.' + e.tool + '#desc')
-  const _shape = _bag.has('#shape') ? '' : SHAPE_HINT
-  if (_shape) _bag.add('#shape')
-  // 多 op 工具：整份 schema 之前先给按 op 拆好的参数表（省下模型从散文/整份 schema 里推必填）
+  const _key = e.server + '.' + e.tool + '#desc'
+  // 每会话去重：同一工具本会话已发过 ⇒ 只回一行（整份 schema 随时可用 #schema 重取）
+  if (_bag.has(_key)) {
+    return '[已发过] ' + e.server + '.' + e.tool + ' 本会话已给过 schema 与红线；要重取 schema 用 describe({tool:"' + e.server + '.' + e.tool + '#schema"})'
+  }
+  recordDecl(sid, convo, _key)
   const _tbl = opTableOf(e)
-  const _tblTxt = _tbl ? opTableText(e.server + '.' + e.tool, e.schema ?? {}, _tbl) : ''
-  // 没有 op 维度的工具：整份 schema 前先给参数说明表（下游 schema 没写 description 时靠 sidecar 补）
-  const _pdTxt = _tbl ? '' : paramDocsFor(e.server + '.' + e.tool, e.schema ?? {}, PARAM_DOCS)
-  // 正文装得下就整份内联（模型不必再取单章）
-  const _inline = inlineSections(e)
-  for (const id of _inline.ids) _bag.add(e.server + '.' + e.tool + '#' + id)
-  // 严格流程：整份 describe 覆盖该工具全部 op（参数表已经逐 op 列全，不必再按 op 逐个 describe）
-  if (_tbl) for (const _o of _tbl.ops) _bag.add(e.server + '.' + e.tool + '#op:' + _o)
-  // 输出顺序：判据块 → 工具名+描述 → 章节索引/正文 → 按 op 参数表 → 参数块 → 形状提示 → 原始 schema 指针。
-  // **不再内联整份 JSON schema**：参数块已给类型/必填/枚举/默认/说明，要嵌套细节走 describe({tool:"x#schema"})。
-  return noteBlock(e) + (noteBlock(e) ? '\n\n' : '') + e.server + '.' + e.tool + '\n\n' + (e.description || '(no description)')
-    + (idx ? '\n\n' + idx : '') + (_inline.text ? '\n\n' + _inline.text : '')
-    + (_tblTxt ? '\n\n' + _tblTxt : '') + (_pdTxt ? '\n\n' + _pdTxt : '')
-    + (_tbl ? '' : '\n\n' + paramBlock(e))
-    + (_shape ? '\n\n' + _shape : '')
-    + '\n\n完整 schema: describe({tool:"' + e.server + '.' + e.tool + '#schema"})'
+  // 严格流程：整份 describe 覆盖该工具全部 op
+  if (_tbl) for (const _o of _tbl.ops) recordDecl(sid, convo, e.server + '.' + e.tool + '#op:' + _o)
+  // 只发两类信息：① 红线（判据块里的硬边界与坑；use/alt 已迁到 catalog 摘要）② 整份 JSON schema
+  const _n = NOTES[e.server + '.' + e.tool]
+  const _red = []
+  if (_n && typeof _n === 'object') {
+    if (_n.bounds) _red.push('  硬边界: ' + _n.bounds)
+    if (_n.trap) _red.push('  坑: ' + _n.trap)
+  } else if (typeof _n === 'string' && _n.trim()) {
+    _red.push('  ' + String(_n).trim())
+  }
+  const _redTxt = _red.length ? '[红线] ' + e.server + '.' + e.tool + '\n' + _red.join('\n') : ''
+  const _schTxt = '[schema] ' + e.server + '.' + e.tool + '\n' + JSON.stringify(e.rawSchema ?? e.schema ?? { type: 'object', properties: {} })
+  return [_redTxt, _schTxt].filter(Boolean).join('\n\n')
 }
 
 // ---- B 试验：已装载集合 + 变更标志 ----
@@ -1262,12 +1387,43 @@ const hubFull = (e) => noteBlock(e) + (noteBlock(e) ? '\n' : '') + declBody(e)
 // 没带 _meta 的调用方（Codex、手写 curl、其他 MCP 客户端）行为完全不变。
 /** `params._meta` 里承载调用方对话 id 的键；沿用 MCP 反向域名惯例。 */
 const CONVO_META_KEY = 'dsh.dev/sessionId'
+// 2026-11-20 加固：declBag 按 (sid, convo) 分桶后，桶随聚合器进程重启丢失 → 同一对话
+// 重启后首调又补发。对 **convo 维度**（宿主插件注入的稳定对话 id）补持久化：
+// DECL_SEEN 按 convo 键写入 decl-seen.json（{convoKey: {toolKey: ts}}），启动时回载，
+// 进程重启后同一对话不再重发。无 convo 的调用方（Codex/curl）行为不变（仍纯内存）。
 const DECL_SEEN = new Map()
+const DECL_PERSIST_PATH = join(HERE, 'decl-seen.json')
+const DECL_PERSIST = (() => { try { return new Map(Object.entries(JSON.parse(readFileSync(DECL_PERSIST_PATH, 'utf8')))) } catch (e) { log('[decl-seen] load failed: ' + (e?.message ?? e)); return new Map() } })()
+let DECL_PERSIST_TIMER = null
+function persistDeclSeen() {
+  if (DECL_PERSIST_TIMER) return
+  DECL_PERSIST_TIMER = setTimeout(() => {
+    DECL_PERSIST_TIMER = null
+    try { writeFileSync(DECL_PERSIST_PATH, JSON.stringify(Object.fromEntries(DECL_PERSIST))) } catch (e) { log('decl-seen persist failed: ' + e.message) }
+  }, 2000)
+}
 const declBag = function (sid, convo) {
   const k = convo ? sidOf(sid) + '\u0000' + String(convo) : sidOf(sid)
   let s = DECL_SEEN.get(k)
   if (!s) { s = new Set(); DECL_SEEN.set(k, s); if (DECL_SEEN.size > 16) { const oldest = DECL_SEEN.keys().next().value; if (oldest !== k) DECL_SEEN.delete(oldest) } }
   return s
+}
+// 记账口：内存桶必记；convo 存在时同步进持久层（键 = convo + 工具键，跨重启有效）
+function recordDecl(sid, convo, key) {
+  declBag(sid, convo).add(key)
+  if (convo) {
+    const pk = String(convo)
+    let set = DECL_PERSIST.get(pk)
+    if (!set) { set = {}; DECL_PERSIST.set(pk, set) }
+    set[key] = Date.now()
+    persistDeclSeen()
+  }
+}
+// 判定"已发过"：内存桶 或 持久层（仅 convo 维度）
+function declAlreadySent(sid, convo, key) {
+  if (declBag(sid, convo).has(key)) return true
+  if (!convo) return false
+  return Boolean(DECL_PERSIST.get(String(convo))?.[key])
 }
 const clip = function (s, n) { s = String(s ?? ''); return s.length <= n ? s : s.slice(0, n - 1) + '…' }
 const clipBytes = function (s, max) {   // 预算按 UTF-8 字节（中文 3 B/字，别用字符数糊弄）
@@ -1581,6 +1737,7 @@ async function callTool(a, sid, budget, convo) {
     const _nKey = _nOp ? _nRef + '#op:' + _nOp : _nRef + '#desc'
     const _nCovered = _nBag.has(_nRef + '#desc') || _nBag.has(_nKey)
       || (_nOp && [..._nBag].some((k) => k.toLowerCase() === _nKey.toLowerCase()))
+      || declAlreadySent(sid, convo, _nKey) || declAlreadySent(sid, convo, _nRef + '#desc')
     if (!_nCovered) {
       // 与 describe 同一个产出；describeText 顺带把 #desc / #op:* 记进桶，之后不再重复
       const _full = await describeText({ tool: _nRef }, sid, convo)
@@ -1632,7 +1789,7 @@ async function callTool(a, sid, budget, convo) {
   const staleSchema = CACHE_SERVED.has(e.server)
   if (bad && staleSchema) { stalePreflightNote = preflightMsg(e, bad, rawArgs) }
   if (bad && !staleSchema) {
-    declBag(sid, convo).add(e.server + '.' + e.tool)   // 预检已附声明，别在下一次重复
+    recordDecl(sid, convo, e.server + '.' + e.tool)   // 预检已附声明，别在下一次重复
     let msg = preflightMsg(e, bad, rawArgs)
     if (budget) {                               // batch 内：预检回吐也要吃整批预算
       if (budget.left <= 0) msg = msg.split('\n修正参数后重发')[0]
